@@ -1,0 +1,93 @@
+%!TEX TS-program = xelatex
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=0mm]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{xcolor}
+\pagestyle{empty}
+
+\setmainfont{lmroman10-regular.otf}[
+  Path=/usr/local/texlive/2024/texmf-dist/fonts/opentype/public/lm/,
+  BoldFont=lmroman10-bold.otf,
+  ItalicFont=lmroman10-italic.otf,
+  BoldItalicFont=lmroman10-bolditalic.otf]
+
+\begin{document}
+\begin{tikzpicture}[remember picture,overlay]
+  \coordinate (C) at (current page.center);
+  \fill[white] (current page.south west) rectangle (current page.north east);
+
+  % The project trajectory rendered as one Archimedean information band.
+  \foreach \a in {0,3,...,1512}{
+    \pgfmathsetmacro{\radius}{36 + .067*\a}
+    \pgfmathsetmacro{\strip}{11 + .0068*\a}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.067*pi/180)}
+    \node[
+      rotate=\tangent,
+      minimum width=8mm,
+      minimum height=\strip mm,
+      inner sep=0pt,
+      fill=black
+    ] at ($(C)+(\a:\radius mm)$) {};
+  }
+
+  % Vocabulary taken directly from the application logic.
+  \foreach \i in {0,...,54}{
+    \pgfmathsetmacro{\a}{28*\i}
+    \pgfmathsetmacro{\radius}{36 + .067*\a}
+    \pgfmathsetmacro{\typesize}{8.5 + .006*\a}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.067*pi/180)}
+    \pgfmathtruncatemacro{\slot}{mod(\i,8)}
+    \ifcase\slot
+      \def\spiralword{IMAGE}
+    \or \def\spiralword{VOICE}
+    \or \def\spiralword{SOUND}
+    \or \def\spiralword{BODY}
+    \or \def\spiralword{PLACE}
+    \or \def\spiralword{RELATION}
+    \or \def\spiralword{OPENING}
+    \else \def\spiralword{NEXT}
+    \fi
+    \node[
+      rotate=\tangent,
+      inner sep=0pt,
+      text=white,
+      font=\bfseries\fontsize{\typesize}{\typesize}\selectfont
+    ] at ($(C)+(\a:\radius mm)$) {\spiralword};
+  }
+
+  % Open centre: the proposition that holds the sequence together.
+  \fill[white] (C) circle (36mm);
+  \draw[black,line width=.45pt] (C) circle (36mm);
+  \node[align=center,font=\bfseries\fontsize{27}{27}\selectfont]
+    at ([yshift=8mm]C) {TAKE OVER};
+  \node[align=center,font=\itshape\fontsize{12}{14}\selectfont]
+    at ([yshift=-4mm]C) {Community is a process.};
+  \node[align=center,font=\fontsize{8.5}{11}\selectfont]
+    at ([yshift=-15mm]C)
+    {$\mathcal{W}=\{\text{image},\text{voice},\text{sound},\text{body},\ldots\}-\mathcal{R}$};
+
+  % Editorial registration and state labels.
+  \fill[white] ([xshift=10mm,yshift=-10mm]current page.north west)
+    rectangle ++(48mm,-19mm);
+  \draw[line width=.5pt] ([xshift=10mm,yshift=-10mm]current page.north west)
+    rectangle ++(48mm,-19mm);
+  \node[anchor=north west,align=left,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=12mm,yshift=-12mm]current page.north west)
+    {TAKE OVER\\FOTOGRAFISKA TALLINN\\INTERACTIVE IN PROGRESS};
+  \node[anchor=north east,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=56mm,yshift=-26mm]current page.north west) {CONTENT STUDY};
+
+  \fill[white] ([xshift=10mm,yshift=9mm]current page.south west)
+    rectangle ++(87mm,8mm);
+  \node[anchor=west,font=\bfseries\fontsize{7}{8}\selectfont]
+    at ([xshift=12mm,yshift=13mm]current page.south west)
+    {FIXED: ATTRIBUTION / OPEN: WHO ENTERS NEXT};
+  \node[anchor=south east,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=-10mm,yshift=8mm]current page.south east)
+    {APPLICATION $\rightarrow$ HUMAN $\rightarrow$ ACTIVATION $\rightarrow$ ?};
+\end{tikzpicture}
+\null
+\end{document}

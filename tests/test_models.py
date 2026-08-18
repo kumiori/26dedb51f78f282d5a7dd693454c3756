@@ -25,8 +25,8 @@ def test_unknown_entity_type_is_rejected() -> None:
 def test_fallback_necessities_keep_semantic_ids_out_of_presentation() -> None:
     items = SessionRegistry({}).list_necessities()
     assert [item.title for item in items] == [
-        "abstract", "material", "initial_kernel", "photographs", "voices_sound", "translation"
+        "abstract", "initial_kernel", "material", "photographs", "translation", "voices_sound"
     ]
     assert [item.status for item in items] == [
-        "in_progress", "collecting", "found", "found", "agreed", "open"
+        "in_progress", "found", "collecting", "found", "open", "agreed"
     ]

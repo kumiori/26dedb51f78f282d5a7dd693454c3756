@@ -11,7 +11,7 @@ import streamlit as st
 import streamlit.components.v1 as components
 
 from takeover.graph import build_graph_html
-from takeover.i18n import LANGUAGES, UTTERANCES, VOICE_LANGUAGES, translate, translator
+from takeover.i18n import LANGUAGES, UTTERANCES, VOICE_LANGUAGES, translate
 from takeover.models import ENTITY_TYPES, STAGES, Entity
 from takeover.registry import SessionRegistry
 from takeover.style import CSS
@@ -24,11 +24,9 @@ TRAJECTORY = ROOT / "config" / "takeover_trajectory.yaml"
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
     language = "en"
-translation = translator(language)
-_ = translation.gettext
-p_ = lambda context, message: translate(translation, message, context)
+t = lambda key: translate(key, language)
 
-st.set_page_config(page_title=p_("project name", "TAKE OVER"), page_icon="+", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title=t("project_name"), page_icon="+", layout="wide", initial_sidebar_state="expanded")
 st.markdown(CSS, unsafe_allow_html=True)
 
 
@@ -78,52 +76,52 @@ def switch_view(view: str) -> None:
     st.session_state["takeover_view"] = view
 
 
-@st.dialog(_("ACCESS DOOR"), width="large")
+@st.dialog(t("access_door"), width="large")
 def access_door() -> None:
-    st.caption(_("A PROJECT IN FORMATION"))
-    st.markdown(_("The door opens onto what exists now. Other routes remain visible, but unopened."))
-    st.markdown(f'<div class="door-option">{_("FOLLOW THE TRAJECTORY")}</div>', unsafe_allow_html=True)
-    st.button(_("Open timeline →"), use_container_width=True, on_click=switch_view, args=("timeline",))
-    st.markdown(f'<div class="door-option">{_("SEE WHAT IS NEEDED")}</div>', unsafe_allow_html=True)
-    st.button(_("Open necessities →"), use_container_width=True, on_click=switch_view, args=("necessities",))
-    st.markdown(f'<div class="door-option door-dormant">{_("CONTRIBUTE — UNOPENED")}</div>', unsafe_allow_html=True)
-    st.button(_("This door is not active yet"), disabled=True, use_container_width=True)
-    st.markdown(f'<div class="door-option door-dormant">{_("EXPLORE — DORMANT")}</div>', unsafe_allow_html=True)
+    st.caption(t("project_formation"))
+    st.markdown(t("door_intro"))
+    st.markdown(f'<div class="door-option">{t("follow_trajectory")}</div>', unsafe_allow_html=True)
+    st.button(t("open_timeline"), use_container_width=True, on_click=switch_view, args=("timeline",))
+    st.markdown(f'<div class="door-option">{t("see_needed")}</div>', unsafe_allow_html=True)
+    st.button(t("open_necessities"), use_container_width=True, on_click=switch_view, args=("necessities",))
+    st.markdown(f'<div class="door-option door-dormant">{t("contribute_unopened")}</div>', unsafe_allow_html=True)
+    st.button(t("door_inactive"), disabled=True, use_container_width=True)
+    st.markdown(f'<div class="door-option door-dormant">{t("explore_dormant")}</div>', unsafe_allow_html=True)
 
 
-@st.dialog(_("NODE"), width="large")
+@st.dialog(t("node"), width="large")
 def node_dialog(entity: Entity) -> None:
     st.markdown(f'<div class="node-kind">{entity.type}</div>', unsafe_allow_html=True)
     st.header(entity.title)
     if entity.label:
         st.write(entity.label)
-    st.caption(f'{_("STAGE")} · {entity.stage.upper()}   /   {_("STATUS")} · {entity.status.upper()}')
+    st.caption(f'{t("stage")} · {entity.stage.upper()}   /   {t("status")} · {entity.status.upper()}')
     if entity.source:
         st.write(entity.source)
     if entity.metadata:
         for key, value in entity.metadata.items():
             st.write(f"{key}: {value}")
-    st.caption(f'{_("REGISTRY ID")} · {entity.id}')
+    st.caption(f'{t("registry_id")} · {entity.id}')
 
 
 def render_nav(current: str) -> None:
-    st.markdown(f'<div class="takeover-brand">{p_("project name", "TAKE OVER")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="takeover-brand">{t("project_name")}</div>', unsafe_allow_html=True)
     with st.container(key="top-nav"):
         columns = st.columns([1, 1, 1, 1, 4])
-        for column, label, key in zip(columns, (p_("navigation", "NETWORK"), p_("navigation", "TIMELINE"), p_("navigation", "NECESSITIES"), p_("page title", "VOICES")), ("network", "timeline", "necessities", "voices")):
+        for column, label, key in zip(columns, (t("network"), t("timeline"), t("necessities"), t("voices")), ("network", "timeline", "necessities", "voices")):
             with column:
                 st.button(label, key=f"nav-{key}", disabled=current == key, on_click=switch_view, args=(key,))
 
 
 def render_sidebar(current: str, mode: str) -> None:
     with st.sidebar:
-        st.title(p_("project name", "TAKE OVER"))
-        st.caption(_("PROJECT NAVIGATION"))
+        st.title(t("project_name"))
+        st.caption(t("project_navigation"))
         for label, key in (
-            (p_("navigation", "NETWORK"), "network"),
-            (p_("navigation", "TIMELINE"), "timeline"),
-            (p_("navigation", "NECESSITIES"), "necessities"),
-            (p_("page title", "VOICES"), "voices"),
+            (t("network"), "network"),
+            (t("timeline"), "timeline"),
+            (t("necessities"), "necessities"),
+            (t("voices"), "voices"),
         ):
             st.button(
                 label,
@@ -134,8 +132,11 @@ def render_sidebar(current: str, mode: str) -> None:
                 args=(key,),
             )
         st.divider()
-        st.caption(f'{_("REGISTRY")} · {mode.upper()}')
-        st.caption(_("DEVELOPMENT INTERFACE"))
+        with st.container(key="language-rail"):
+            for code, label in LANGUAGES.items():
+                st.button(label, key=f"language-{code}", type="primary" if code == language else "secondary", use_container_width=True, on_click=set_language, args=(code,))
+        st.caption(f'{t("registry")} · {mode.upper()}')
+        st.caption(t("development_interface"))
 
 
 def render_network(repo, mode: str) -> None:
@@ -144,15 +145,18 @@ def render_network(repo, mode: str) -> None:
     left, right = st.columns([0.8, 1.55], gap="large")
     with left:
         st.markdown('<div class="takeover-copy">', unsafe_allow_html=True)
-        st.title(p_("project name", "TAKE OVER"))
-        st.markdown(f'<div class="takeover-kicker">{_("A COMMUNITY IN PROGRESS")}</div>', unsafe_allow_html=True)
-        manifesto = "<br>".join(map(_, ("We start from what remains.", "We open doors.", "We listen. We respond.", "We build what comes next — together.")))
-        manifesto += "<br><br>" + "<br>".join(map(_, ("This is a live project.", "It grows with every connection.")))
+        st.title(t("project_name"))
+        st.markdown(f'<div class="takeover-kicker">{t("interactive_progress")}</div>', unsafe_allow_html=True)
+        manifesto = "<br>".join(t(key) for key in ("manifesto_remains", "manifesto_doors", "manifesto_listen", "manifesto_build"))
+        manifesto += "<br><br>" + "<br>".join(t(key) for key in ("manifesto_live", "manifesto_grows"))
         st.markdown(f'<div class="takeover-manifesto">{manifesto}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="takeover-entry"><strong>{_("ENTER THE NETWORK")}</strong><span>{_("Open the central node to begin.")}<br>{_("The system grows from explicit relations.")}</span></div>', unsafe_allow_html=True)
+        st.markdown(f'<div class="takeover-entry"><strong>{t("enter_network")}</strong><span>{t("open_node")}<br>{t("explicit_relations")}</span></div>', unsafe_allow_html=True)
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
-        components.html(build_graph_html(entities, relations, p_("network action", "START HERE"), p_("network invitation", "YOU?"), _("Bring your voice, your image, your practice."), p_("empty network state", "nothing?")), height=610, scrolling=False)
+        components.html(build_graph_html(entities, relations, t("start_here"), t("you"), t("invitation"), t("nodes"), t("connections"), t("connections_node")), height=610, scrolling=False)
+    imperatives = "".join(f'<span class="imperative imperative-{index}">{html.escape(t(key))}</span>' for index, key in enumerate(("take_wall", "take_opening", "take_sound", "take_restaurant", "take_night", "take_web", "take_photography")))
+    st.markdown(f'<section class="imperative-field"><strong>{t("project_name")}.</strong>{imperatives}<b>{t("pass_it_on")}</b></section>', unsafe_allow_html=True)
+    st.markdown(f'<section class="listening"><small>{t("suggested_listening")}</small><span>{t("listening_work")}</span></section>', unsafe_allow_html=True)
     if str(st.query_params.get("door", "") or "") == "access":
         access_door()
     requested = str(st.query_params.get("node", "") or "")
@@ -164,16 +168,16 @@ def render_network(repo, mode: str) -> None:
 
 
 def render_admin(repo, mode: str) -> None:
-    with st.expander(_("Developer controls · Add node"), expanded=False):
-        st.caption(_("Local/admin validation only. This surface is absent unless TAKEOVER_ADMIN_MODE=1."))
+    with st.expander(t("developer_add"), expanded=False):
+        st.caption(t("admin_note"))
         with st.form("add-node-form", clear_on_submit=True):
-            kind = st.selectbox(_("Entity type"), ENTITY_TYPES)
-            title = st.text_input(_("Name / title"))
-            entity_id = st.text_input(_("ID"), placeholder="ave")
-            label = st.text_input(_("Label"), placeholder="artist")
-            stage = st.selectbox(_("Stage"), STAGES)
-            source = st.text_input(_("Image or audio URL"), placeholder="https://…")
-            submitted = st.form_submit_button(_("Add entity"), use_container_width=True)
+            kind = st.selectbox(t("entity_type"), ENTITY_TYPES)
+            title = st.text_input(t("name_title"))
+            entity_id = st.text_input(t("id"), placeholder="ave")
+            label = st.text_input(t("label"), placeholder="artist")
+            stage = st.selectbox(t("stage"), STAGES)
+            source = st.text_input(t("image_audio_url"), placeholder="https://…")
+            submitted = st.form_submit_button(t("add_entity"), use_container_width=True)
         if submitted:
             clean_id = re.sub(r"[^a-z0-9_-]+", "-", entity_id.strip().lower()).strip("-")
             try:
@@ -181,32 +185,30 @@ def render_admin(repo, mode: str) -> None:
             except ValueError as exc:
                 st.error(str(exc))
             else:
-                st.success(_("Added %(title)s to the %(mode)s registry.") % {"title": title, "mode": mode})
+                st.success(f'{title} · {t("registry")} · {mode.upper()}')
                 st.rerun()
 
 
 def render_timeline() -> None:
-    st.markdown(f'<div class="section-head">{p_("navigation", "TIMELINE")} · {p_("project stage", "APPLICATION")}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="section-head">{t("timeline")} · {t("application")}</div>', unsafe_allow_html=True)
     payload = load_trajectory(TRAJECTORY)
     plan = payload["plan"]
-    st.caption(str(plan.get("description") or _("A trajectory toward the opening of TAKE OVER.")))
+    st.caption(str(plan.get("description") or t("timeline_fallback")))
     st.plotly_chart(build_timeline_figure(payload), use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
-    st.caption(_("READ-ONLY M1 VIEW · YAML REMAINS THE TIMELINE SOURCE"))
+    st.caption(t("timeline_source"))
 
 
 def render_necessities(repo) -> None:
-    st.markdown(f'<div class="section-head">{_("WHAT THE PROJECT NEEDS NOW")}</div>', unsafe_allow_html=True)
-    st.caption(_("Need → stage → state. This is not a resources directory."))
-    necessity_labels = {"abstract": "Abstract", "material": "Material", "initial_kernel": "Initial kernel", "photographs": "Photographs", "voices_sound": "Voices + sound", "translation": "Translation"}
-    status_labels = {"in_progress": "IN PROGRESS", "collecting": "COLLECTING", "found": "FOUND", "agreed": "AGREED", "open": "OPEN"}
+    st.markdown(f'<div class="section-head">{t("necessities_title")}</div>', unsafe_allow_html=True)
+    st.caption(t("need_stage_state"))
     necessities = repo.list_necessities()
     for item in sorted(necessities, key=lambda value: (value.stage, value.title)):
         st.markdown(
-            f'<div class="necessity"><strong>{p_("necessity name", necessity_labels.get(item.title, item.title))}</strong><span class="stage">{p_("project stage", item.stage.upper())}</span><span class="status">{p_("necessity status", status_labels.get(item.status, item.status.upper()))}</span></div>',
+            f'<div class="necessity"><strong>{t(item.title)}</strong><span class="stage">{t(item.stage)}</span><span class="status">{t(item.status)}</span></div>',
             unsafe_allow_html=True,
         )
     if not necessities:
-        st.info(_("No necessities have been activated yet."))
+        st.info(t("no_necessities"))
 
 
 def set_language(language: str) -> None:
@@ -214,16 +216,15 @@ def set_language(language: str) -> None:
 
 
 def render_voices() -> None:
-    catalogues = {code: translator(code) for code in VOICE_LANGUAGES}
     st.markdown('<main class="voices">', unsafe_allow_html=True)
-    st.markdown(f'<div class="voices-head"><h1>{p_("page title", "VOICES")}</h1><p>{_("Every translatable utterance currently spoken by TAKE OVER, arranged by weight.")}</p></div>', unsafe_allow_html=True)
-    for index, utterance in enumerate(UTTERANCES):
+    st.markdown(f'<div class="voices-head"><h1>{t("voices")}</h1><p>{t("voices_intro")}</p></div>', unsafe_allow_html=True)
+    for utterance in UTTERANCES:
         variants = []
         for code in VOICE_LANGUAGES:
-            rendered = translate(catalogues[code], utterance.message, utterance.context)
-            variants.append(f'<span><b>{code.upper()}</b>{html.escape(rendered)}</span>')
+            variants.append(f'<span><b>{code.upper()} · {utterance.status(code)}</b>{html.escape(utterance.text(code))}</span>')
         weight_class = 5 if utterance.weight >= 80 else 4 if utterance.weight >= 60 else 3 if utterance.weight >= 40 else 2 if utterance.weight >= 24 else 1
-        st.markdown(f'<article class="voice"><div class="voice-phrase voice-weight-{weight_class}">{html.escape(translate(translation, utterance.message, utterance.context))}</div><div class="voice-versions">{"".join(variants)}</div><button disabled>{p_("translation action", "IMPROVE THIS TRANSLATION")}</button><small>{_("Proposals are not open yet.")}</small></article>', unsafe_allow_html=True)
+        metadata = f'{t("source_key")} · {utterance.key} &nbsp; / &nbsp; {t("weight")} · {utterance.weight}'
+        st.markdown(f'<article class="voice"><small class="voice-meta">{metadata}</small><div class="voice-phrase voice-weight-{weight_class}">{html.escape(utterance.text(language))}</div><div class="voice-versions">{"".join(variants)}</div><button disabled>{t("improve_translation")}</button><small>{t("proposals_closed")}</small></article>', unsafe_allow_html=True)
     st.markdown('</main>', unsafe_allow_html=True)
 
 

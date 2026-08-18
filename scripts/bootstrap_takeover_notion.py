@@ -17,6 +17,8 @@ from typing import Any
 
 from notion_client import Client
 
+from takeover.registry import NECESSITY_ROWS
+
 
 ROOT = Path(__file__).resolve().parents[1]
 DEFAULT_MANIFEST = ROOT / "config" / "takeover_notion.json"
@@ -40,7 +42,7 @@ DATABASES: dict[str, dict[str, Any]] = {
     "places": {"title": "Takeover_Places", "properties": {"Name": {"title": {}}, "Place ID": rich(), "Description": rich(), "Coordinates": rich(), "Status": STATUS, "Metadata JSON": rich()}},
     "relations": {"title": "Takeover_Relations", "properties": {"Name": {"title": {}}, "Relation ID": rich(), "Source ID": rich(), "Source Type": select(("person", "blue"), ("photograph", "purple"), ("audio", "orange"), ("place", "green"), ("timeline_event", "yellow"), ("necessity", "pink")), "Target ID": rich(), "Target Type": select(("person", "blue"), ("photograph", "purple"), ("audio", "orange"), ("place", "green"), ("timeline_event", "yellow"), ("necessity", "pink")), "Relation Type": rich(), "Status": STATUS, "Metadata JSON": rich(), "Created At": date_prop()}},
     "timeline_events": {"title": "Takeover_TimelineEvents", "properties": {"Name": {"title": {}}, "Event ID": rich(), "Event Type": rich(), "Temporal Position": number(), "Event Date": date_prop(), "Status": select(("planned", "gray"), ("active", "green"), ("realised", "blue"), ("changed", "orange"), ("cancelled", "red")), "Visibility": select(("public", "green"), ("private", "gray")), "Metadata JSON": rich()}},
-    "necessities": {"title": "Takeover_Necessities", "properties": {"Name": {"title": {}}, "Necessity ID": rich(), "Status": select(("needed", "red"), ("in progress", "yellow"), ("secured", "green"), ("paused", "gray")), "Description": rich(), "Metadata JSON": rich(), "Created At": date_prop()}},
+    "necessities": {"title": "Takeover_Necessities", "properties": {"Name": {"title": {}}, "Necessity ID": rich(), "Status": select(("in_progress", "yellow"), ("found", "green"), ("collecting", "blue"), ("open", "red"), ("agreed", "purple")), "Description": rich(), "Metadata JSON": rich(), "Created At": date_prop()}},
     "interactions": {"title": "Takeover_Interactions", "properties": {"Name": {"title": {}}, "Interaction ID": rich(), "Interaction Type": rich(), "Actor ID": rich(), "Target ID": rich(), "Occurred At": date_prop(), "Visibility": select(("public", "green"), ("private", "gray")), "Metadata JSON": rich()}},
 }
 
@@ -65,7 +67,6 @@ STAGES = (
     ("exhibition", "Exhibition", 4, "dormant", "The living network becomes publicly present."),
     ("propagation", "Propagation", 5, "dormant", "Connections and materials travel beyond the exhibition."),
 )
-
 
 def text(value: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": {"content": value}}]
@@ -127,24 +128,34 @@ def seed_stages(client: Client, manifest: dict[str, Any]) -> None:
     manifest["stage_pages"] = pages
 
 
-def seed_necessities(client: Client, manifest: dict[str, Any]) -> None:
-    if manifest.get("necessities_seeded"):
-        return
+def sync_necessities(client: Client, manifest: dict[str, Any]) -> None:
+    """Make the live Necessities data source exactly match the M2 corpus."""
     source = str(manifest["databases"]["necessities"]["data_source_id"])
     stage_id = str(manifest["stage_pages"]["application"])
-    rows = (
-        ("need-application-material", "Application material", "in progress", "A coherent application package and its supporting materials."),
-        ("need-photographs", "Photographs", "needed", "Images that can become independent nodes in the growing network."),
-        ("need-audio", "Voices and sound", "needed", "Voices, recordings and sound material with explicit provenance."),
-        ("need-collaborators", "Collaborators", "needed", "People who can shape, produce and carry the project."),
-    )
-    for item_id, name, status, description in rows:
-        client.pages.create(parent={"type": "data_source_id", "data_source_id": source}, properties={
-            "Name": {"title": text(name)}, "Necessity ID": {"rich_text": text(item_id)}, "Status": {"select": {"name": status}},
-            "Description": {"rich_text": text(description)}, "Stage": {"relation": [{"id": stage_id}]},
-            "Created At": {"date": {"start": date.today().isoformat()}},
-        })
+    client.data_sources.update(data_source_id=source, properties={"Status": DATABASES["necessities"]["properties"]["Status"]})
+    response = client.data_sources.query(data_source_id=source, page_size=100)
+    existing = {
+        "".join(part.get("plain_text") or "" for part in ((page.get("properties") or {}).get("Necessity ID") or {}).get("rich_text") or []): page
+        for page in response.get("results") or []
+    }
+    current_ids = {row[0] for row in NECESSITY_ROWS}
+    for item_id, name, status in NECESSITY_ROWS:
+        properties = {
+            "Name": {"title": text(name)}, "Necessity ID": {"rich_text": text(item_id)},
+            "Status": {"select": {"name": status}}, "Description": {"rich_text": []},
+            "Stage": {"relation": [{"id": stage_id}]},
+        }
+        page = existing.get(item_id)
+        if page:
+            client.pages.update(page_id=page["id"], properties=properties, archived=False)
+        else:
+            properties["Created At"] = {"date": {"start": date.today().isoformat()}}
+            client.pages.create(parent={"type": "data_source_id", "data_source_id": source}, properties=properties)
+    for item_id, page in existing.items():
+        if item_id and item_id not in current_ids:
+            client.pages.update(page_id=page["id"], archived=True)
     manifest["necessities_seeded"] = True
+    manifest["necessities_version"] = "m2.0"
 
 
 def verify(client: Client, manifest: dict[str, Any]) -> list[str]:
@@ -166,7 +177,7 @@ def verify(client: Client, manifest: dict[str, Any]) -> list[str]:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("command", choices=("plan", "create", "verify"))
+    parser.add_argument("command", choices=("plan", "create", "sync-necessities", "verify"))
     parser.add_argument("--parent-page-id", default="")
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     args = parser.parse_args()
@@ -194,8 +205,11 @@ def main() -> None:
                 save(path, manifest)
         configure_relations(client, manifest["databases"])
         seed_stages(client, manifest)
-        seed_necessities(client, manifest)
+        sync_necessities(client, manifest)
         manifest["status"] = "ready"
+        save(path, manifest)
+    elif args.command == "sync-necessities":
+        sync_necessities(client, manifest)
         save(path, manifest)
     errors = verify(client, manifest)
     if errors:
@@ -209,4 +223,3 @@ if __name__ == "__main__":
     except Exception as exc:
         print(f"ERROR: {exc}", file=sys.stderr)
         raise SystemExit(1)
-

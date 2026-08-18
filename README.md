@@ -1,4 +1,4 @@
-# TAKE OVER · Milestone 1
+# TAKE OVER · Milestone 2.0
 
 A deliberately sparse Streamlit scaffold for a growing multiplex community.
 

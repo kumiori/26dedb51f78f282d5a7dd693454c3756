@@ -31,7 +31,7 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     app = AppTest.from_file("app.py").run(timeout=20)
     app.button[2].click().run(timeout=20)
     assert not app.exception
-    assert any("Initial kernel" in block.value for block in app.markdown)
+    assert any("INITIAL KERNEL" in block.value for block in app.markdown)
 
 
 def test_developer_add_node_flow(monkeypatch) -> None:
@@ -54,5 +54,8 @@ def test_voices_exposes_weighted_corpus(monkeypatch) -> None:
     assert not app.exception
     corpus = " ".join(block.value for block in app.markdown)
     assert "Bring your voice, your image, your practice." in corpus
-    assert "EN" in corpus and "ET" in corpus and "FR" in corpus and "IT" in corpus
+    assert "EN · CANONICAL" in corpus
+    assert "ET · PROVISIONAL" in corpus
+    assert "RU · PROVISIONAL" in corpus
+    assert "<b>FR ·" not in corpus and "<b>IT ·" not in corpus
     assert "IMPROVE THIS TRANSLATION" in corpus

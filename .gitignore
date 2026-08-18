@@ -21,4 +21,9 @@ build/
 dist/
 *.egg-info/
 
+# LaTeX build intermediates (keep source and finished PDFs)
+output/**/*.aux
+output/**/*.log
+output/**/*.out
+
 .streamlit/secrets.toml

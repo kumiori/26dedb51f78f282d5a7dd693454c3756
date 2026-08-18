@@ -8,6 +8,16 @@ from typing import Protocol
 from .models import Entity, Necessity, Relation
 
 
+NECESSITY_ROWS = (
+    ("need-abstract", "abstract", "in_progress"),
+    ("need-initial-kernel", "initial_kernel", "found"),
+    ("need-material", "material", "collecting"),
+    ("need-photographs", "photographs", "found"),
+    ("need-translation", "translation", "open"),
+    ("need-voices-sound", "voices_sound", "agreed"),
+)
+
+
 class Registry(Protocol):
     def list_entities(self) -> list[Entity]: ...
     def list_relations(self) -> list[Relation]: ...
@@ -30,14 +40,7 @@ class SessionRegistry:
         return [Relation(**item) for item in self._state["takeover_relations"]]
 
     def list_necessities(self) -> list[Necessity]:
-        return [
-            Necessity("need-abstract", "abstract", "application", "in_progress"),
-            Necessity("need-material", "material", "application", "collecting"),
-            Necessity("need-initial-kernel", "initial_kernel", "application", "found"),
-            Necessity("need-photographs", "photographs", "application", "found"),
-            Necessity("need-voices-sound", "voices_sound", "application", "agreed"),
-            Necessity("need-translation", "translation", "application", "open"),
-        ]
+        return [Necessity(item_id, name, "application", status) for item_id, name, status in NECESSITY_ROWS]
 
     def add_entity(self, entity: Entity) -> Entity:
         if any(item["id"] == entity.id for item in self._state["takeover_entities"]):

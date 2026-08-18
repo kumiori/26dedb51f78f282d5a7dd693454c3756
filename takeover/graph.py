@@ -5,12 +5,22 @@ from __future__ import annotations
 import html
 import json
 from math import cos, pi, sin
+import secrets
 from urllib.parse import quote
 
 from .models import Entity, Relation
 
 
-def build_graph_html(entities: list[Entity], relations: list[Relation], start_label: str = "START HERE", you_label: str = "YOU?", invitation: str = "Bring your voice, your image, your practice.", empty_label: str = "nothing?") -> str:
+def build_graph_html(
+    entities: list[Entity],
+    relations: list[Relation],
+    start_label: str = "START HERE",
+    you_label: str = "YOU?",
+    invitation: str = "Bring your voice, your image, your practice.",
+    nodes_label: str = "NODES",
+    connections_label: str = "CONNECTIONS",
+    ratio_label: str = "CONNECTIONS/NODE",
+) -> str:
     width, height = 920, 590
     centre = (width / 2, height / 2)
     positions: dict[str, tuple[float, float]] = {}
@@ -37,6 +47,8 @@ def build_graph_html(entities: list[Entity], relations: list[Relation], start_la
             f'<span class="orb"></span><strong>{label}</strong><small>{html.escape(entity.label or entity.type)}</small></a>'
         )
     count = len(entities)
+    connection_count = len(lines)
+    ratio = f"{connection_count / count:.3f}" if count else f"{secrets.randbelow(9_000_000_000_000) + 1_000_000_000_000:.11E}"
     payload = json.dumps({"nodes": count, "connections": len(lines)})
     ghost_points = [(112, 112), (215, 78), (325, 150), (450, 76), (565, 128), (710, 82), (824, 165), (785, 292), (842, 420), (710, 490), (590, 445), (476, 520), (345, 460), (205, 515), (96, 405), (158, 295)]
     ghost_edges = [(0, 2), (1, 2), (2, 3), (2, 5), (3, 4), (4, 6), (5, 7), (6, 7), (7, 8), (7, 10), (8, 9), (9, 10), (9, 11), (10, 12), (11, 13), (12, 13), (12, 14), (13, 15), (14, 15), (0, 15), (2, 15), (4, 10)]
@@ -53,7 +65,7 @@ def build_graph_html(entities: list[Entity], relations: list[Relation], start_la
       .latent {{ stroke:#aaa6a0; stroke-width:.55; opacity:.22; }}
       .hub {{ position:absolute; left:50%; top:43%; transform:translate(-50%,-50%); display:grid; place-items:center;
         width:96px; height:96px; border-radius:50%; background:#111; color:#fff; font-size:38px; text-decoration:none; }}
-      .hub:hover {{ background:#ff2d0a; }}
+      .hub:hover,.hub:focus {{ background:#123dff; outline:0; }}
       .hub-label {{ position:absolute; left:50%; top:calc(43% + 58px); transform:translateX(-50%); font-size:12px; letter-spacing:.11em; white-space:nowrap; }}
       .you {{ position:absolute; left:50%; top:76%; transform:translate(-50%,-50%); width:190px; text-align:center; }}
       .you-orb {{ display:grid; place-items:center; width:76px; height:76px; margin:auto; border:1px solid #8d8983; border-radius:50%; background:rgba(255,255,255,.25); font-size:30px; color:#595652; }}
@@ -69,7 +81,8 @@ def build_graph_html(entities: list[Entity], relations: list[Relation], start_la
       .node strong,.node small {{ display:block; }}
       .node strong {{ font-size:12px; letter-spacing:.08em; text-transform:uppercase; }}
       .node small {{ margin-top:3px; font-size:10px; color:#64615e; }}
-      .stats {{ position:absolute; right:18px; bottom:18px; font-size:10px; letter-spacing:.12em; line-height:1.9; text-transform:uppercase; }}
+      .stats {{ position:absolute; right:18px; bottom:18px; display:grid; grid-template-columns:auto minmax(8rem,auto); gap:.15rem 1.4rem; font-size:10px; letter-spacing:.12em; line-height:1.7; text-transform:uppercase; }}
+      .stats b {{ text-align:right; font-weight:400; }}
       @keyframes wobble {{ from {{ transform:translate(-50%,-50%) rotate(-1.2deg) translateY(-3px); }} to {{ transform:translate(-50%,-50%) rotate(1.2deg) translateY(4px); }} }}
       @media (prefers-reduced-motion:reduce) {{ .node {{ animation:none; }} }}
     </style>
@@ -80,7 +93,6 @@ def build_graph_html(entities: list[Entity], relations: list[Relation], start_la
       <a class="hub" href="?view=network&amp;door=access" target="_top" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
       <div class="you"><span class="you-orb">+</span><strong>{html.escape(you_label)}</strong><small>{html.escape(invitation)}</small></div>
       {''.join(nodes)}
-      {f'<div class="empty">{html.escape(empty_label)}</div>' if not entities else ''}
-      <div class="stats">{count} nodes<br>{len(lines)} connections</div>
+      <div class="stats"><span>{html.escape(nodes_label)}</span><b>{count}</b><span>{html.escape(connections_label)}</span><b>{connection_count}</b><span>{html.escape(ratio_label)}</span><b>{ratio}</b></div>
     </div>
     """

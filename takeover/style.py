@@ -3,7 +3,7 @@
 CSS = r"""
 <style>
 @import url('https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=Inter:wght@400;500;600&display=swap');
-:root { --paper:#f5f2ed; --ink:#111; --muted:#68635e; --signal:#ff2d0a; }
+:root { --paper:#f5f2ed; --ink:#111; --muted:#68635e; --signal:#123dff; }
 .stApp { background:radial-gradient(circle at 56% 38%,#fff 0,#f7f4ef 46%,#eeeae4 100%); color:var(--ink); }
 [data-testid="stToolbar"] { display:none; }
 [data-testid="stHeader"] { background:transparent; }
@@ -24,6 +24,13 @@ h2,h3,.stCaption { font-family:'DM Mono',monospace!important; }
 .takeover-entry { margin-top:3rem; padding-left:1rem; border-left:1px solid var(--ink); font-family:'DM Mono',monospace; }
 .takeover-entry strong { display:block; letter-spacing:.18em; margin-bottom:.7rem; }
 .takeover-entry span { font-size:.78rem; line-height:1.6; }
+.imperative-field { position:relative; min-height:25rem; margin:4rem 0 1rem; border-top:1px solid rgba(17,17,17,.18); font-family:'DM Mono',monospace; overflow:hidden; }
+.imperative-field strong { display:block; margin-top:2.2rem; font-size:clamp(2.6rem,7vw,7.5rem); line-height:.85; letter-spacing:-.07em; }
+.imperative-field .imperative { position:absolute; font-size:clamp(.58rem,.75vw,.76rem); letter-spacing:.1em; color:var(--muted); }
+.imperative-0{left:2%;top:52%}.imperative-1{left:24%;top:42%}.imperative-2{left:47%;top:61%}.imperative-3{right:3%;top:39%}.imperative-4{left:13%;bottom:12%}.imperative-5{left:56%;bottom:9%}.imperative-6{right:5%;bottom:24%}
+.imperative-field b { position:absolute; right:2%; bottom:1%; font-size:clamp(1.5rem,3.4vw,3.8rem); letter-spacing:.02em; }
+.listening { display:flex; justify-content:space-between; align-items:baseline; gap:2rem; margin:0 0 5rem; padding:1rem 0; border-top:1px solid rgba(17,17,17,.18); border-bottom:1px solid rgba(17,17,17,.18); font-family:'DM Mono',monospace; }
+.listening small { color:var(--muted); letter-spacing:.15em; }.listening span { letter-spacing:.06em; }
 .st-key-top-nav [data-testid="stButton"] button { border:0; background:transparent; padding:.2rem .4rem; font-family:'DM Mono',monospace; letter-spacing:.15em; font-size:.72rem; }
 .st-key-top-nav [data-testid="stButton"] button:hover { color:var(--signal); border:0; }
 .start-door [data-testid="stButton"] button { width:100%; min-height:5.2rem; border-radius:50%; background:#111; color:white; border:0; font-family:'DM Mono',monospace; letter-spacing:.08em; font-size:.76rem; }
@@ -62,19 +69,20 @@ h1.i18n-title { margin:1.2rem auto 1.5rem!important; max-width:900px; text-align
 .voices-head h1 { margin:0!important; }
 .voices-head p { max-width:28rem; color:var(--muted); font-family:'DM Mono',monospace; font-size:.75rem; line-height:1.6; }
 .voice { position:relative; padding:2rem 0 2.4rem; border-top:1px solid rgba(17,17,17,.18); }
+.voice-meta { display:block; margin-bottom:.9rem; color:var(--muted); font-family:'DM Mono',monospace; letter-spacing:.09em; text-transform:uppercase; }
 .voice-phrase { max-width:900px; font-family:'DM Mono',monospace; line-height:1.04; letter-spacing:.02em; }
 .voice-weight-1 { font-size:.9rem; }
 .voice-weight-2 { font-size:1.15rem; }
 .voice-weight-3 { font-size:1.65rem; }
 .voice-weight-4 { font-size:2.5rem; }
 .voice-weight-5 { font-size:4.2rem; }
-.voice-versions { display:grid; grid-template-columns:repeat(4,1fr); gap:1rem; max-height:0; overflow:hidden; opacity:0; transition:max-height .25s ease,opacity .25s ease; }
+.voice-versions { display:grid; grid-template-columns:repeat(3,1fr); gap:1rem; max-height:0; overflow:hidden; opacity:0; transition:max-height .25s ease,opacity .25s ease; }
 .voice:hover .voice-versions,.voice:focus-within .voice-versions { max-height:12rem; margin-top:1.6rem; opacity:1; }
 .voice-versions span { color:var(--muted); font-size:.72rem; line-height:1.45; }
 .voice-versions b { display:block; margin-bottom:.35rem; color:var(--ink); font-family:'DM Mono',monospace; letter-spacing:.14em; }
 .voice button { margin-top:1rem; padding:0; border:0; background:transparent; color:#77736e; font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.12em; }
 .voice small { margin-left:1rem; color:#aaa6a0; font-family:'DM Mono',monospace; font-size:.6rem; }
-@media(max-width:850px){ .block-container{padding:1.2rem}.takeover-copy{padding-top:3rem}.necessity{grid-template-columns:1fr 1fr}.necessity .desc{grid-column:1/-1} }
+@media(max-width:850px){ .block-container{padding:1.2rem}.takeover-copy{padding-top:3rem}.necessity{grid-template-columns:1fr 1fr}.imperative-field{min-height:31rem}.listening{display:block}.listening span{display:block;margin-top:.5rem} }
 @media(max-width:850px){ .voices-head{display:block}.voice-versions{grid-template-columns:1fr 1fr}.voice:hover .voice-versions{max-height:24rem} }
 </style>
 """
