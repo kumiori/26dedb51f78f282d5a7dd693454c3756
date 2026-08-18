@@ -30,3 +30,30 @@ msgid "SOURCE COPY: ENGLISH"
 msgstr "TEXTE SOURCE : ANGLAIS"
 msgid "CATALOGUE: GNU GETTEXT"
 msgstr "CATALOGUE : GNU GETTEXT"
+
+#. TRANSLATORS: "TAKE OVER" intentionally functions both as the project name
+#. and as an imperative addressed to the visitor.
+msgctxt "project name"
+msgid "TAKE OVER"
+msgstr "TAKE OVER"
+
+msgctxt "network action"
+msgid "START HERE"
+msgstr "COMMENCEZ ICI"
+
+msgctxt "network invitation"
+msgid "YOU?"
+msgstr "VOUS ?"
+
+msgid "A COMMUNITY IN PROGRESS"
+msgstr "UNE COMMUNAUTÉ EN DEVENIR"
+
+msgid "Bring your voice, your image, your practice."
+msgstr "Apportez votre voix, votre image, votre pratique."
+
+msgid "WHAT THE PROJECT NEEDS NOW"
+msgstr "CE DONT LE PROJET A BESOIN MAINTENANT"
+
+msgctxt "page title"
+msgid "VOICES"
+msgstr "VOIX"

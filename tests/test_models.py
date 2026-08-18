@@ -1,4 +1,5 @@
 from takeover.models import Entity
+from takeover.registry import SessionRegistry
 
 
 def test_entity_types_are_not_flattened() -> None:
@@ -20,3 +21,12 @@ def test_unknown_entity_type_is_rejected() -> None:
     else:
         raise AssertionError("generic graph nodes must not be admitted")
 
+
+def test_fallback_necessities_keep_semantic_ids_out_of_presentation() -> None:
+    items = SessionRegistry({}).list_necessities()
+    assert [item.title for item in items] == [
+        "abstract", "material", "initial_kernel", "photographs", "voices_sound", "translation"
+    ]
+    assert [item.status for item in items] == [
+        "in_progress", "collecting", "found", "found", "agreed", "open"
+    ]

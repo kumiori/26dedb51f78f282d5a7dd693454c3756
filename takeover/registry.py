@@ -31,10 +31,12 @@ class SessionRegistry:
 
     def list_necessities(self) -> list[Necessity]:
         return [
-            Necessity("need-application-material", "Application material", "application", "in progress", "A coherent application package and its supporting materials."),
-            Necessity("need-photographs", "Photographs", "application", "needed", "Images that can become independent nodes in the network."),
-            Necessity("need-audio", "Voices and sound", "application", "needed", "Voices, recordings and sound material with explicit provenance."),
-            Necessity("need-collaborators", "Collaborators", "application", "needed", "People who can shape, produce and carry the project."),
+            Necessity("need-abstract", "abstract", "application", "in_progress"),
+            Necessity("need-material", "material", "application", "collecting"),
+            Necessity("need-initial-kernel", "initial_kernel", "application", "found"),
+            Necessity("need-photographs", "photographs", "application", "found"),
+            Necessity("need-voices-sound", "voices_sound", "application", "agreed"),
+            Necessity("need-translation", "translation", "application", "open"),
         ]
 
     def add_entity(self, entity: Entity) -> Entity:
@@ -42,4 +44,3 @@ class SessionRegistry:
             raise ValueError(f"Entity id already exists: {entity.id}")
         self._state["takeover_entities"].append(asdict(entity))
         return entity
-

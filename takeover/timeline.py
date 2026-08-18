@@ -41,13 +41,16 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
         kind = str(event.get("type") or "event")
         glyph, color = EVENT_TYPES.get(kind, EVENT_TYPES["event"])
         x = float(event.get("time_parameter") or event.get("temporal_position") or 0)
-        y = 0.12 if index % 2 == 0 else -0.12
+        # Keep the primitive alternation, but stagger neighbouring labels enough
+        # to prevent the application-stage cluster from colliding.
+        tier = index % 4
+        y = (0.13, -0.13, 0.23, -0.23)[tier]
         title = str(event.get("title") or kind.replace("_", " ").title())
         figure.add_trace(go.Scatter(
             x=[x], y=[y], mode="markers+text",
             marker={"size": 18, "color": color, "line": {"color": "#f5f2ed", "width": 3}},
             text=[f"{glyph} {title}"], textposition="top center" if y > 0 else "bottom center",
-            textfont={"family": "Courier New, monospace", "size": 11, "color": "#111"},
+            textfont={"family": "Courier New, monospace", "size": 10, "color": "#111"},
             customdata=[[kind, event.get("date", ""), event.get("visibility", "")]],
             hovertemplate="<b>%{text}</b><br>%{customdata[0]}<br>%{customdata[1]}<extra></extra>",
             showlegend=False,
@@ -66,9 +69,8 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
             "showgrid": False, "zeroline": False,
             "tickfont": {"family": "Courier New, monospace", "size": 10},
         },
-        yaxis={"range": [-0.3, 0.3], "visible": False},
+        yaxis={"range": [-0.38, 0.38], "visible": False},
         font={"family": "Courier New, monospace", "color": "#111"},
         hoverlabel={"font": {"family": "Courier New, monospace"}},
     )
     return figure
-
