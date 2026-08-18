@@ -1,0 +1,26 @@
+{
+  "schema_version": "takeover-notion-v1",
+  "status": "ready",
+  "workspace_id": "d68344bc-e027-4c99-bef4-de98fd8cd379",
+  "parent_page_id": "3c08547f-fe9a-814e-919a-d2baf9e94f9e",
+  "parent_page_url": "https://app.notion.com/p/3c08547ffe9a814e919ad2baf9e94f9e",
+  "databases": {
+    "stages": {"database_id": "6789dbf1-7a6a-404f-b7e2-3f3a9d9ac1b8", "data_source_id": "80948173-b977-41b1-8e4b-d53050e6f76f"},
+    "persons": {"database_id": "4d5c988b-c9c7-4d68-8c88-6b0d4306fa9e", "data_source_id": "d8dc5e70-d50d-48df-a0f1-4209c3c7e499"},
+    "photographs": {"database_id": "fd619887-59bf-4d15-9fb2-578b6559f473", "data_source_id": "aecb4ab9-41b1-4ab1-99a2-4f76d887d908"},
+    "audio": {"database_id": "e92c1b35-f9d2-43ee-a90c-b170e7ec1dae", "data_source_id": "f856da75-c63d-4786-add8-aa6af4a2771c"},
+    "places": {"database_id": "993de4ac-bc9a-459d-b401-53f7fa346be3", "data_source_id": "d19ca48a-8754-47d0-a9df-fc9143066cc9"},
+    "relations": {"database_id": "ba9fce37-a6b3-4593-9ad1-74cab29602ad", "data_source_id": "8702b6b8-3a37-4c91-985e-cc5667009d96"},
+    "timeline_events": {"database_id": "c872553c-7fcf-4569-a55c-3e19bd48d405", "data_source_id": "f52234a7-abb4-4145-8cda-8e0ad30056ba"},
+    "necessities": {"database_id": "af95a81e-e3ca-4836-9c7c-49f8f60a1f10", "data_source_id": "654083a6-229c-4604-8833-8232ece5decf"},
+    "interactions": {"database_id": "c55f96b1-123d-4168-88b2-7f3ea2c2e534", "data_source_id": "098f98b0-8e3b-47b3-8348-5ad817dcc3b6"}
+  },
+  "stage_pages": {
+    "application": "3c08547f-fe9a-813f-a058-d59db8b2724b",
+    "activation": "3c08547f-fe9a-8189-b4b4-fc7634b2add5",
+    "production": "3c08547f-fe9a-8118-9693-f95c1035b502",
+    "exhibition": "3c08547f-fe9a-8185-8c75-e524855a948a",
+    "propagation": "3c08547f-fe9a-8185-a625-ddf173db0e65"
+  },
+  "necessities_seeded": true
+}

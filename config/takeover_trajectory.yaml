@@ -1,0 +1,294 @@
+schema_version: trajectory-plan/v2
+plan:
+  id: 8b14ab6383a44bf387849d2486315aca
+  source_kind: plan
+  title: TAKEOVER º Fotografiska •
+  description: "An interactive growing community. \ncould be {open to} Anyone. Coming into this."
+  initial_condition: "There is a call. There are photos, \nfrom Baltic trip, sounds from search environments\
+    \ \nambition: bigger exhibition, next time some time\n\n} something introductory to a bigger diving\
+    \ into the concept {"
+  goal_statement: OPENING OF TAKEOVER
+  goal_conditions: "everybody has fun, energy goes out and relaxes, meet again\n\nEVERYBODY COMES\
+    \ IN THIS COMMUNITY FEEL IMPORTANT IN THE PROCESS, \nSENSE & FEELING OF CONTRIBUTION FROM ALL\
+    \ SIDES\n\nº"
+  destination_label: OPENING OF TAKEOVER
+  created_at: '2026-08-18T16:00:33.526018+00:00'
+  start_date: '2026-08-18'
+  temporal_mode: qualitative
+  time_unit: Weeks
+  qualitative_anchors:
+  - - Now
+    - 0.0
+  - - Soon
+    - 0.12
+  - - Later
+    - 0.35
+  - - Sometime
+    - 0.58
+  - - Eventually
+    - 0.8
+  - - Landing
+    - 1.0
+  guided_setup: !!bool 'true'
+  axis_y_label: Entropy
+  suggested_moves: []
+  prompt: What should happen—not necessarily first, but off the top of your head?
+  landing_mode: open
+  horizon_label: Open horizon
+  horizon_days: 365
+  duration_label: No target date
+  target_date: null
+primitives:
+- id: 5f8c4463ca2b4e2e94f6cd2f406b4ed4
+  type: action
+  title: Send application (doublechecked) * Cc
+  time_parameter: 0.56
+  temporal_position: 0.56
+  date_value: '2027-03-10'
+  date: '2027-03-10'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Structural
+  directional_mode: gradually
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.28
+  entropy_effect: 0.0
+  influence_radius: 0.14
+  energy_offset: 0.28
+  alignment_offset: 0.0
+  influence_width: 0.14
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:17:02.480964+00:00'
+  modified_at: '2026-08-18T16:17:02.480964+00:00'
+- id: a675543167c74494b8ebd1ec791a5962
+  type: gateway
+  title: Application well-received
+  time_parameter: 0.64
+  temporal_position: 0.64
+  date_value: '2027-04-09'
+  date: '2027-04-09'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Local
+  directional_mode: gradually
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.14
+  entropy_effect: 0.0
+  influence_radius: 0.08
+  energy_offset: 0.14
+  alignment_offset: 0.0
+  influence_width: 0.08
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:18:08.891982+00:00'
+  modified_at: '2026-08-18T16:18:08.891982+00:00'
+- id: 320d8539160449c6994cfd1e08882aad
+  type: share_resources
+  title: Mai's voice
+  time_parameter: 0.37
+  temporal_position: 0.37
+  date_value: '2026-12-31'
+  date: '2026-12-31'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Structural
+  directional_mode: gradually
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.28
+  entropy_effect: 0.0
+  influence_radius: 0.14
+  energy_offset: 0.28
+  alignment_offset: 0.0
+  influence_width: 0.14
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:19:28.021011+00:00'
+  modified_at: '2026-08-18T16:19:28.021011+00:00'
+- id: bf275a1c5fd34a968d9c7fd62d20602e
+  type: milestone
+  title: Mai's text
+  time_parameter: 0.33
+  temporal_position: 0.33
+  date_value: '2026-12-16'
+  date: '2026-12-16'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Structural
+  directional_mode: abruptly
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.28
+  entropy_effect: 0.0
+  influence_radius: 0.14
+  energy_offset: 0.28
+  alignment_offset: 0.0
+  influence_width: 0.14
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:20:19.113261+00:00'
+  modified_at: '2026-08-18T16:20:19.113261+00:00'
+- id: ee7bd1d2369f485e8f20fff3736d1a4b
+  type: update
+  title: Touch base 3pm Tallinn Time (2pm)
+  time_parameter: 0.44
+  temporal_position: 0.44
+  date_value: '2027-01-26'
+  date: '2027-01-26'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Structural
+  directional_mode: gradually
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.28
+  entropy_effect: 0.0
+  influence_radius: 0.14
+  energy_offset: 0.28
+  alignment_offset: 0.0
+  influence_width: 0.14
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:29:26.351246+00:00'
+  modified_at: '2026-08-18T16:29:26.351246+00:00'
+- id: f4861772022043dabe3191c5477ead38
+  type: update
+  title: Doublecheck before submission/launch
+  time_parameter: 0.5
+  temporal_position: 0.5
+  date_value: '2027-02-16'
+  date: '2027-02-16'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Structural
+  directional_mode: gradually
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.28
+  entropy_effect: 0.0
+  influence_radius: 0.14
+  energy_offset: 0.28
+  alignment_offset: 0.0
+  influence_width: 0.14
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:31:27.848204+00:00'
+  modified_at: '2026-08-18T16:31:27.848204+00:00'
+- id: 86af26c186cc4bada9e88877c90aaa24
+  type: milestone
+  title: Invite Arvo
+  time_parameter: 0.84
+  temporal_position: 0.84
+  date_value: '2027-06-21'
+  date: '2027-06-21'
+  time_basis: relative
+  interval_start: '2026-08-18'
+  interval_end: '2027-08-18'
+  influence_scale: Dominant
+  directional_mode: abruptly
+  topology_mode: continuation
+  branch_parent: null
+  branch_labels: []
+  energy_effect: 0.44
+  entropy_effect: 0.0
+  influence_radius: 0.22
+  energy_offset: 0.44
+  alignment_offset: 0.0
+  influence_width: 0.22
+  interval_status: active
+  description: ''
+  intention: ''
+  dependencies: []
+  responsible_actors: []
+  collaborators: []
+  resources_needed: []
+  completion_evidence: []
+  visibility: Private
+  tags: []
+  notes: ''
+  created_at: '2026-08-18T16:41:11.734077+00:00'
+  modified_at: '2026-08-18T16:41:11.734077+00:00'
+uncertainty: []
+view:
+  camera:
+    eye:
+      x: 0.08
+      y: -2.35
+      z: 0.42
+    center:
+      x: 0.0
+      y: 0.0
+      z: 0.0
+    up:
+      x: 0.0
+      y: 0.0
+      z: 1.0
