@@ -12,7 +12,7 @@ def test_empty_graph_exposes_only_start_hub() -> None:
     assert 'class="hub"' in html
     assert 'class="you-orb"' in html
     ratio = re.search(r"CONNECTIONS/NODE</span><b>([^<]+)", html)
-    assert ratio and ratio.group(1).endswith("E+12")
+    assert ratio and ratio.group(1).endswith("E+09")
     assert build_graph_html([], []) != html
 
 

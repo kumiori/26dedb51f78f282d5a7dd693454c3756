@@ -48,7 +48,7 @@ def build_graph_html(
         )
     count = len(entities)
     connection_count = len(lines)
-    ratio = f"{connection_count / count:.3f}" if count else f"{secrets.randbelow(9_000_000_000_000) + 1_000_000_000_000:.11E}"
+    ratio = f"{connection_count / count:.3f}" if count else f"{secrets.randbelow(9_000_000_000) + 1_000_000_000:.11E}"
     payload = json.dumps({"nodes": count, "connections": len(lines)})
     ghost_points = [(112, 112), (215, 78), (325, 150), (450, 76), (565, 128), (710, 82), (824, 165), (785, 292), (842, 420), (710, 490), (590, 445), (476, 520), (345, 460), (205, 515), (96, 405), (158, 295)]
     ghost_edges = [(0, 2), (1, 2), (2, 3), (2, 5), (3, 4), (4, 6), (5, 7), (6, 7), (7, 8), (7, 10), (8, 9), (9, 10), (9, 11), (10, 12), (11, 13), (12, 13), (12, 14), (13, 15), (14, 15), (0, 15), (2, 15), (4, 10)]

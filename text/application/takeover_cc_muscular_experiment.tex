@@ -1,0 +1,93 @@
+%!TEX TS-program = xelatex
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=0mm]{geometry}
+\usepackage{fontspec}
+\usepackage{amsmath,amssymb}
+\usepackage{tikz}
+\usetikzlibrary{calc}
+\usepackage{xcolor}
+\pagestyle{empty}
+
+\setmainfont{LibertinusSerif-Regular.otf}[
+  Path=/usr/local/texlive/2024/texmf-dist/fonts/opentype/public/libertinus-fonts/,
+  BoldFont=LibertinusSerif-Bold.otf,
+  ItalicFont=LibertinusSerif-Italic.otf,
+  BoldItalicFont=LibertinusSerif-BoldItalic.otf]
+
+\begin{document}
+\begin{tikzpicture}[remember picture,overlay]
+  \coordinate (C) at (current page.center);
+  \fill[white] (current page.south west) rectangle (current page.north east);
+
+  % One Archimedean spiral: radius and strip thickness both increase linearly.
+  % A dense first pass makes a continuous black band.
+  \foreach \a in {0,2,...,1800}{
+    \pgfmathsetmacro{\radius}{31 + .053*\a}
+    \pgfmathsetmacro{\strip}{13 + .006*\a}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.053*pi/180)}
+    \node[
+      rotate=\tangent,
+      minimum width=7mm,
+      minimum height=\strip mm,
+      inner sep=0pt,
+      fill=black
+    ] at ($(C)+(\a:\radius mm)$) {};
+  }
+
+  % Legible signs at the centre compress progressively into typographic matter.
+  % Angular increments: 22 degrees, then 15, then 11.
+  \foreach \a in {90,112,...,486}{
+    \pgfmathsetmacro{\radius}{31 + .053*\a}
+    \pgfmathsetmacro{\typesize}{1.5*(16 + .012*\a)}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.053*pi/180)}
+    \node[
+      rotate=\tangent,
+      inner sep=0pt,
+      text=white,
+      font=\bfseries\fontsize{\typesize}{\typesize}\selectfont
+    ] at ($(C)+(\a:\radius mm)$) {CC};
+  }
+  \foreach \a in {500,515,...,1100}{
+    \pgfmathsetmacro{\radius}{31 + .053*\a}
+    \pgfmathsetmacro{\typesize}{1.5*(16 + .012*\a)}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.053*pi/180)}
+    \node[rotate=\tangent,inner sep=0pt,text=white,
+      font=\bfseries\fontsize{\typesize}{\typesize}\selectfont]
+      at ($(C)+(\a:\radius mm)$) {CC};
+  }
+  \foreach \a in {1120,1131,...,1791}{
+    \pgfmathsetmacro{\radius}{31 + .053*\a}
+    \pgfmathsetmacro{\typesize}{1.5*(16 + .012*\a)}
+    \pgfmathsetmacro{\tangent}{\a + 90 + atan(.053*pi/180)}
+    \node[rotate=\tangent,inner sep=0pt,text=white,
+      font=\bfseries\fontsize{\typesize}{\typesize}\selectfont]
+      at ($(C)+(\a:\radius mm)$) {CC};
+  }
+
+  % Cut the aperture again so the inner boundary remains perfectly legible.
+  \fill[white] (C) circle (31mm);
+  \draw[black,line width=.45pt] (C) circle (31mm);
+
+  % Central proposition.
+  \node[
+    fill=white,
+    inner xsep=5mm,
+    inner ysep=2mm,
+    font=\mdseries\fontsize{29}{29}\selectfont
+  ] at (C) {TAKEOVER};
+
+  % Quiet editorial registration marks.
+  \fill[white] ([xshift=10mm,yshift=-10mm]current page.north west)
+    rectangle ++(45mm,-17mm);
+  \draw[line width=.5pt] ([xshift=10mm,yshift=-10mm]current page.north west)
+    rectangle ++(45mm,-17mm);
+  \node[anchor=north west,align=left,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=12mm,yshift=-12mm]current page.north west)
+    {TAKE OVER\\FOTOGRAFISKA TALLINN\\COMMUNITY / COMMUNITY};
+  \node[anchor=north east,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=53mm,yshift=-24mm]current page.north west) {EXPERIMENT 01};
+  \node[anchor=south east,font=\fontsize{6.2}{7.2}\selectfont]
+    at ([xshift=-10mm,yshift=8mm]current page.south east) {CC / TAKEOVER / LIBERTINUS};
+\end{tikzpicture}
+\null
+\end{document}
