@@ -33,10 +33,23 @@ TAKEOVER_ADMIN_MODE=1 streamlit run app.py
 
 This flag is intentionally off by default. M2.0 has no public or anonymous write path.
 
+## Invitation events and analytics
+
+Any non-empty `a` query parameter, for example `?a=application` or `?a=reviewer-qr`, is normalised and recorded once in the visible session event log as an invitation activation. This log is session-local; interaction persistence to Notion is not implemented yet.
+
+Google Analytics emission is optional. Set a TAKE OVER property ID without committing it:
+
+```bash
+TAKEOVER_GA_MEASUREMENT_ID=G-XXXXXXXXXX streamlit run app.py
+```
+
+The same key may be placed in `.streamlit/secrets.toml`. When configured, the app sends `takeover_session_started` and `invitation_activation`; the latter includes only the normalised invitation source. Without a valid `G-...` ID, no analytics component is loaded.
+
 ## Sources of truth
 
 - `config/takeover_trajectory.yaml` — read-only timeline input (`trajectory-plan/v2`).
 - `config/takeover_resources.yaml` — three zero-valued allocation observations and a separate investment-intention impulse; the impulse is dimensionless and never represented as available funds.
+- `config/takeover_listening.yaml` — the open suggested-listening field and its reversible addendum presentation toggle.
 - `config/takeover_notion.json` — provisioned Notion database and data-source IDs.
 - Notion page **Takeover** — live entity, relation, necessity and interaction registry.
 - `takeover/i18n.py` — registered EN/ET/RU interface corpus, weights and translation status.

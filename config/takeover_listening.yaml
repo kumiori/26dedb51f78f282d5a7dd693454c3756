@@ -1,0 +1,166 @@
+schema_version: takeover-listening/v1
+presentation:
+  show_addendum: true
+
+suggested_listening:
+  title: "Suggested listening"
+  status: "open"
+  description: >
+    An initial listening field around TAKE OVER.
+    Not a soundtrack and not a closed playlist.
+    Records may enter, leave, or acquire new relations as the process develops.
+
+  items:
+    - id: bach_walcha_toccaten_fugen
+      artist: "Johann Sebastian Bach"
+      performer: "Helmut Walcha"
+      title: "Toccaten und Fugen / Toccatas and Fugues"
+      format: "LP"
+      label: "Archiv Produktion"
+      context:
+        instrument: "Frans-Caspar-Schnitger-Orgel"
+        place: "St. Laurenskerk, Alkmaar"
+      relation: [church, organ, architecture, fugue, recurrence]
+      status: "identified"
+      note: >
+        Church as resonant architecture; contrapuntal voices separating,
+        returning and remaining autonomous while producing a whole.
+
+    - id: classical_ritual_compilation
+      title: "Carmina Burana / Chevauchée des Walkyries / Gnossiennes"
+      works:
+        - "Carmina Burana (O Fortuna)"
+        - "4ème Gnossienne — Erik Satie"
+        - "5ème Gnossienne — Erik Satie"
+      label: "EMI"
+      format: "LP"
+      relation: [ritual, fate, repetition, suspension]
+      status: "partially_identified"
+      note: >
+        A useful collision: monumentality and ritual against Satie's sparse,
+        suspended time.
+
+    - id: african_head_charge_churchical
+      artist: "African Head Charge"
+      title: "Churchical Chant of the Iyabinghi"
+      format: "LP"
+      relation: [chant, assembly, ritual, dub, ecclesia, collective_voice]
+      status: "identified"
+      note: >
+        Particularly close to the ecclesia thread: assembly enacted through
+        rhythm, chant and collective vocal presence rather than architecture.
+
+    - id: sepultura_arise
+      artist: "Sepultura"
+      title: "Arise"
+      format: "LP"
+      relation: [extinction, emergence, violence, rupture, arise]
+      status: "identified"
+      note: >
+        Almost absurdly direct in relation to EXTINCTION IN PROGRESS:
+        destruction paired with the imperative to arise.
+
+    - id: public_service_broadcasting_war_room
+      artist: "Public Service Broadcasting"
+      title: "The War Room"
+      format: "record"
+      relation: [archive, broadcast, signal, ruins, public_voice]
+      status: "identified"
+      note: >
+        Archive becomes transmission. Existing recorded material is reactivated
+        and made to speak in another temporal context.
+
+    - id: at_real_irreale
+      title_visible: "AT REAL IRREALE... / ... REALTÀ"
+      artist_visible: "KINA"
+      format: "LP"
+      relation: [real, unreal, mediation, image, signal]
+      status: "needs_identification"
+      note: >
+        Keep provisional until the exact artist/title/edition is checked.
+        The visible real/irreale language is already relevant to the portal logic.
+
+    - id: rage_against_the_machine
+      artist: "Rage Against the Machine"
+      title: "Rage Against the Machine"
+      format: "LP"
+      relation: [resistance, body, institution, combustion, political_action]
+      status: "identified"
+      note: >
+        Body as irreversible political signal. An image that cannot be separated
+        comfortably from the act it records.
+
+    - id: mozart_nachtmusik_karajan
+      artist: "Wolfgang Amadeus Mozart"
+      performer: "Berliner Philharmoniker · Herbert von Karajan"
+      title: "Eine kleine Nachtmusik / Divertimento KV 287"
+      label: "Deutsche Grammophon"
+      format: "LP"
+      relation: [night, divertimento, gathering, social_music]
+      status: "identified"
+      note: >
+        Night as social space rather than darkness alone. Music written to occupy
+        an occasion.
+
+    - id: de_andre_non_al_denaro
+      artist: "Fabrizio De André"
+      title: "Non al denaro non all'amore né al cielo"
+      visible_tracks:
+        - "Un blasfemo"
+      format: "LP"
+      relation: [cemetery, dead_speaking, biography, community, memory]
+      status: "identified"
+      note: >
+        Extremely close to the photographic narrative: a community reconstructed
+        through voices of the dead. The cemetery speaks person by person.
+
+    - id: collage_kaokiri
+      artist: "Collage"
+      title: "Käokiri"
+      format: "LP"
+      relation: [estonia, polyphony, folk_memory, collective_voice, tallinn]
+      status: "identified"
+      note: >
+        A local and polyphonic anchor: inherited song reorganised through a
+        collective vocal language.
+
+    - id: dj_metatron_2_the_sky
+      artist: "DJ Metatron"
+      title: "2 The Sky"
+      label: "Giegling"
+      catalogue_number: "Giegling 18"
+      year: 2016
+      format: "record"
+      cover_description: "White sleeve with two hand-drawn blue crosses"
+      relation:
+        - sky
+        - ascent
+        - electronic_music
+        - signal
+      status: "identified"
+      note: >
+        The white sleeve with the two hand-drawn blue crosses. The cover match
+        is confirmed.
+
+    - id: glass_beams_mahal
+      artist: "Glass Beams"
+      title: "Mahal"
+      label: "Ninja Tune"
+      year: 2024
+      format: "EP"
+      cover_description: "Copper/gold sleeve"
+      visible_tracks:
+        - "Horizon"
+        - "Mahal"
+        - "Orb"
+        - "Snake Oil"
+        - "Black Sand"
+      relation:
+        - horizon
+        - ritual
+        - psychedelic_music
+        - mediation
+      status: "identified"
+      note: >
+        The copper/gold record at upper right. A five-track EP moving through
+        horizon, orbit, ritual and mirage-like repetition.

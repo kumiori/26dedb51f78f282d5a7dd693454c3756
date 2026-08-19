@@ -1,0 +1,90 @@
+## TAKE OVER
+
+### interactive in progress / extinction in progress
+
+There is, first of all, a church.
+
+Or rather there is what remains of one, which is not quite the same thing, because a church without the people who made it a church is technically architecture, ruin, evidence, shell, acoustical cavity, cultural remainder, maybe real estate, but no longer quite _ecclesia_, the older word underneath the building, meaning not stone but assembly, not roof but people called together.
+
+This distinction matters.
+
+The photographs begin there, among abandoned churches, funerary stones, holes, fragments, apertures, bodies, objects whose function is not immediately obvious. At some point a black square appears. Nobody explains it. It is held up. Carried. Left behind. Encountered again. Eventually it becomes legible as something like a code, which is to say simultaneously an object and an instruction for leaving the object.
+
+And this is approximately where TAKE OVER begins.
+
+Not from nothing. Nothing is rarely available.
+
+It begins from what remains: architectures, images, memories, relationships, sounds, debris, previous uses, dead people’s names carved in stone, other people’s photographs, somebody else’s voice, the fact that someone has already stood here before you and altered the conditions under which you now arrive.
+
+The QR code does not explain the photograph. This is important. The photograph has already done perfectly well without explanation. The code instead punctures it. Through it comes a voice, or a field recording, or sound gathered somewhere else, or another person altogether. Image opens to voice; voice to sound; sound to person; person to practice; practice to relation; relation to whatever happens next.
+
+The point is not multimedia.
+
+The point is contagion.
+
+Community here is therefore not an object being photographed. Nor, ideally, a comforting noun pasted over a collection of people who already know one another. It is a process whose evidence consists in the fact that something passes.
+
+And because this is a Community Gallery open call, with the peculiar arithmetic common to open calls in which many people enter and very few physically fit through the institutional aperture, TAKE OVER introduces one small perturbation.
+
+Fifteen photographic positions are available.
+
+We use twelve.
+
+[
+12+\square+\square+\square=15
+]
+
+The remaining three are not empty because we ran out of photographs. We have photographs.
+
+They are empty because somebody is not here yet.
+
+This is the proposition in its least metaphorical form: twenty percent of scarce exhibition space is surrendered in advance to people, works or relations we cannot presently name. If nobody enters, the vacancy remains visible. If somebody does, the work changes.
+
+The initial constellation is small. Andrés A. León Baldelli / KUMIORI brings the photographic sequence. Ave Palm brings another photographic language through abandoned architectures, bodies, movement and cyanotype. Mai-Brit Tänava enters first as a photographed body and then, crucially, as a voice capable of speaking back from inside the image. Kenn-Eerik Kannike introduces listening, site recordings and the possibility of live electronic sound.
+
+Nobody disappears into a collective signature.
+
+That would defeat the point.
+
+The authors remain authors. Their works remain theirs. What TAKE OVER claims as its material is what begins occurring **between** them.
+
+This returns us to the church.
+
+The Greek _ekklesía_ named an assembly before it named the architectural container we now instinctively picture when somebody says “church.” In these photographs the historical inversion is almost embarrassingly literal: the container survives and the assembly is gone.
+
+So what happens if the process is run backward?
+
+[
+\text{remains}+\text{call}\rightarrow\text{response}\rightarrow\text{assembly}
+]
+
+Not an assembly of people who believe the same thing.
+
+That would be easy, and historically rather dangerous.
+
+An assembly of people willing to respond.
+
+The exhibition is therefore less a finished configuration than an initial condition. Photographs occupy the wall. Certain photographs contain portals. Portals lead to voices, sounds, people, translations, invitations, and to a live digital surface where the project’s trajectory, needs, resources and emerging relations remain visible.
+
+Then comes the opening.
+
+Photography. Voice. Situated sound. Movement.
+
+Possibly a concert. Possibly performance. Possibly food. Possibly night. None of these are decorative programme extensions appended afterward to make the opening “immersive.” They enter only if someone enters carrying them.
+
+Which means the exhibition can exceed its wall without pretending the wall does not matter.
+
+The wall is the initial condition.
+
+The opening perturbs it.
+
+And then, ideally, something we did not authorize happens.
+
+**TAKE OVER THE WALL.
+TAKE OVER THE SOUND.
+TAKE OVER THE OPENING.
+PASS IT ON.**
+
+Because a takeover that ends in possession is merely conquest.
+
+The interesting version is transmission.

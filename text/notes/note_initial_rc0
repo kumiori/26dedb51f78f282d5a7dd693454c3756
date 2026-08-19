@@ -1,0 +1,149 @@
+this is straight line to rc0 - submission
+
+start with three seeded nodes and postpone public node creation.
+
+That gives you the right balance between “this is alive” and “we are not pretending the participation infrastructure is finished.”
+
+The cleanest state for submission is:
+
+1. START HERE remains the activation node.
+The QR in the application lands with something like ?a=application. That is already enough to turn the reviewer into an event in the system.
+
+2. Three initial nodes are visible from day zero.
+Not profiles. Just constitutive presences.
+
+seed:
+
+* Ave — person•alien / artist / application
+* Mai-Brit — person•alien / voice / application
+* Kenn-Eerik — person•alien / sound / application
+
+pre-seed
+Graziano Mazza person•alien / technical / application
+
+You can decide whether your own applicant node appears immediately or remains implicit in the structure. I actually like the slight asymmetry of the initiator not being the first visible social node.
+
+3. The “add a node” button exists but is not yet fully active.
+This is useful if phrased correctly. Not broken. Not disabled-looking. Something like:
+
++ ADD / OPENING SOON
+
+or
+
++ ENTER THE NETWORK
+contribution flow opens next
+
+The important thing is that this reads as trajectory, not missing functionality.
+
+4. Hard-code the three nodes now.
+That is absolutely fine. You are not building an infrastructure benchmark. You are demonstrating a live process under deadline. The registry already gives you a path to later replace hard-coded seed data with an add-node workflow.
+
+5. Make the deadline itself visible as a live state.
+This is the one piece I think is worth adding now because it supports the uncertainty you are describing.
+
+For example, in micro-type:
+
+APPLICATION WINDOW / STILL OPEN
+
+or
+
+D0 · BEFORE SUBMISSION
+
+Then after submission:
+
+APPLICATION / SUBMITTED
+
+and that state change can unlock the next stage.
+
+That creates a very neat progression:
+
+G_0 = \{*, /\}
+
+then, before submission,
+
+G_1 = \{+, *, /, \text{Ave}, \text{Mai}, \text{Kenn-Eerik}\}
+
+then the jury scan gives an event,
+
+G_1 \xrightarrow{\text{application activation}} E_1
+
+and only after that do you unlock actual node addition.
+
+So I would not spend the next hour building the dialog. It is not needed to make the application credible. The stronger move is to show an already populated but still clearly opening system.
+
+What I would do in the next app pass is very small:
+
+* seed 3 nodes
+* connect each to its current role
+* keep START HERE
+* wire the QR activation parameter
+* record the activation event
+* show APPLICATION WINDOW / STILL OPEN
+* leave ADD NODE visibly forthcoming
+
+ADDITIONALLY 
+Yes. I would make uncertainty a first-class state, not explanatory prose tucked away somewhere.
+
+The application window can explicitly show something like:
+
+APPLICATION WINDOW / OPEN
+
+and beneath it, very small, almost like system telemetry:
+
+* participants / unknown
+* production budget / none secured
+* jury / unknown
+* selection / unknown
+* response time / unknown
+* exhibition feasibility / conditional
+* future contributors / open
+* next state / unresolved
+
+That is stronger than pretending the system is already coherent. It says: the project is live because the uncertainties are live.
+
+Conceptually, I would distinguish three classes:
+
+\text{known} \qquad \text{open} \qquad \text{unknown}
+
+For example:
+
+KNOWN
+initial contributors
+photographic material
+submission deadline
+production responsibility
+
+OPEN
+new participants
+future practices
+resource contributions
+opening format
+
+UNKNOWN
+jury composition
+selection outcome
+whether sufficient resources will emerge
+whether the exhibition will actually happen
+when or whether Fotografiska responds
+
+The nice thing is that these unknowns are not weaknesses. They are literally part of the state space at t=0.
+
+You could even have one line:
+
+We do not know whether this will happen. That is part of the current state.
+
+That gives the project a lot of credibility. No bluffing, no fake inevitability.
+
+And later, as reality answers some of these questions, the system can visibly update:
+
+UNKNOWN → KNOWN
+OPEN → COMMITTED
+CONDITIONAL → ACTIVATED
+
+That will make the app feel genuinely temporal rather than merely descriptive.
+
+The one thing I would avoid is making uncertainty sound anxious. Present it clinically, almost instrumentally. Not “will this ever work?”, but:
+
+EXHIBITION / feasibility: unresolved
+
+That keeps the tone sharp.

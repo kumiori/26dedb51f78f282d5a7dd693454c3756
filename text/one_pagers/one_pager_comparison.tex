@@ -1,0 +1,44 @@
+%!TEX TS-program = xelatex
+\documentclass[10pt]{article}
+\usepackage[a4paper,margin=10mm]{geometry}
+\usepackage[no-math]{fontspec}
+\usepackage{amsmath,amssymb,bm}
+\usepackage{multicol}
+\usepackage{titlesec}
+\usepackage{microtype}
+\usepackage{xcolor}
+\setmainfont{EBGaramond-Regular.otf}[
+  Path=/usr/local/texlive/2024/texmf-dist/fonts/opentype/public/ebgaramond/,
+  BoldFont=EBGaramond-Bold.otf,
+  ItalicFont=EBGaramond-Italic.otf,
+  BoldItalicFont=EBGaramond-BoldItalic.otf,
+  Ligatures=TeX]
+\SetMathAlphabet{\mathrm}{normal}{OT1}{cmr}{m}{n}
+\SetMathAlphabet{\mathbf}{normal}{OT1}{cmr}{bx}{n}
+\SetMathAlphabet{\mathit}{normal}{OT1}{cmr}{m}{it}
+\pagestyle{empty}
+\setlength{\parindent}{0pt}
+\setlength{\parskip}{1.35pt}
+\setlength{\columnsep}{8mm}
+\setlength{\columnseprule}{.3pt}
+\providecommand{\tightlist}{\setlength{\itemsep}{0pt}\setlength{\parskip}{0pt}}
+\titleformat{\section}{\bfseries\fontsize{20}{19}\selectfont}{}{0pt}{}
+\titlespacing*{\section}{0pt}{0pt}{3mm}
+\titleformat{\subsubsection}{\itshape\fontsize{8}{9}\selectfont}{}{0pt}{}
+\titlespacing*{\subsubsection}{0pt}{0pt}{3mm}
+\newcommand{\versionpage}[2]{%
+  {\fontsize{7.7}{8.8}\selectfont
+  \begin{multicols}{2}
+    \noindent\textbf{#1 / TWO-COLUMN PRINT SPECIMEN}\par\vspace{2mm}
+    \input{#2}
+  \end{multicols}}
+}
+\begin{document}
+\versionpage{01 / PUSH}{push.fragment.tex}
+\newpage
+\versionpage{02 / AVATAR}{avatar.fragment.tex}
+\newpage
+\versionpage{03 / DFW}{dfw.fragment.tex}
+\newpage
+\versionpage{04 / DSS}{dss.fragment.tex}
+\end{document}

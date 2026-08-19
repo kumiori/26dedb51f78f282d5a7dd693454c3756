@@ -1,9 +1,10 @@
-from takeover.models import Entity
+from takeover.models import Entity, entity_type_label
 from takeover.registry import SessionRegistry
 
 
 def test_entity_types_are_not_flattened() -> None:
     assert Entity("ave", "person", "Ave", "artist").type == "person"
+    assert entity_type_label("person") == "Person • Alien"
     assert Entity("photo-1", "photograph", "Untitled").type == "photograph"
     assert Entity("audio-1", "audio", "Field recording").type == "audio"
 

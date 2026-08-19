@@ -14,6 +14,95 @@ def test_m1_initial_state_is_sparse(monkeypatch) -> None:
     assert "Add entity" not in [button.label for button in app.button]
 
 
+def test_rc0_application_state_and_qr_activation_are_visible(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    monkeypatch.delenv("TAKEOVER_GA_MEASUREMENT_ID", raising=False)
+    app = AppTest.from_file("app.py")
+    app.query_params["a"] = "application"
+    app.run(timeout=20)
+
+    assert not app.exception
+    corpus = " ".join(block.value for block in app.markdown)
+    assert "APPLICATION WINDOW / OPEN" in corpus
+    assert "D0 · BEFORE SUBMISSION" in corpus
+    assert "PARTICIPANTS" in corpus and "UNKNOWN" in corpus
+    assert "PRODUCTION BUDGET" in corpus and "NONE SECURED" in corpus
+    assert "EXHIBITION / FEASIBILITY" in corpus and "CONDITIONAL" in corpus
+    assert "We do not know whether this will happen." in corpus
+    activation_events = [
+        event for event in app.session_state["takeover_event_log"]
+        if event["label_key"] == "event_invitation_activation"
+    ]
+    assert len(activation_events) == 1
+    assert activation_events[0]["target"] == "application"
+    assert activation_events[0]["detail"] == "query:a"
+
+    app.run(timeout=20)
+    assert sum(
+        event["label_key"] == "event_invitation_activation"
+        for event in app.session_state["takeover_event_log"]
+    ) == 1
+
+
+def test_any_invitation_source_is_normalised_and_captured(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    monkeypatch.delenv("TAKEOVER_GA_MEASUREMENT_ID", raising=False)
+    app = AppTest.from_file("app.py")
+    app.query_params["a"] = "Reviewer QR"
+    app.run(timeout=20)
+
+    events = [
+        event for event in app.session_state["takeover_event_log"]
+        if event["label_key"] == "event_invitation_activation"
+    ]
+    assert len(events) == 1
+    assert events[0]["target"] == "reviewer-qr"
+    assert events[0]["detail"] == "query:a"
+
+
+def test_landing_process_manifesto_and_entry_share_one_three_column_grid(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    monkeypatch.delenv("TAKEOVER_GA_MEASUREMENT_ID", raising=False)
+    app = AppTest.from_file("app.py").run(timeout=20)
+
+    grid = next(block.value for block in app.markdown if 'class="takeover-three-blocks"' in block.value)
+    assert grid.count("<article") == 3
+    assert grid.index('class="takeover-process"') < grid.index('class="takeover-manifesto"')
+    assert grid.index('class="takeover-manifesto"') < grid.index('class="takeover-entry"')
+    assert "grid-template-columns:repeat(3,minmax(0,1fr))" in CSS
+
+
+def test_network_connections_and_state_portrait_open_dialogues(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    app = AppTest.from_file("app.py")
+    app.query_params["relation"] = "seed-kumiori-ave"
+    app.run(timeout=20)
+
+    assert not app.exception
+    corpus = " ".join(block.value for block in app.markdown)
+    assert "ACTIVE RELATION" in corpus
+    assert "KUMIORI ↔ Ave" in " ".join(title.value for title in app.header)
+    assert "COLLABORATES_WITH" in corpus
+    assert any(
+        event["label_key"] == "event_connection_opened"
+        for event in app.session_state["takeover_event_log"]
+    )
+
+    app = AppTest.from_file("app.py")
+    app.query_params["state"] = "art"
+    app.run(timeout=20)
+    assert not app.exception
+    corpus = " ".join(block.value for block in app.markdown)
+    assert "NETWORK STATE" in corpus
+    assert "4 active people" in corpus
+    assert "1 latent known" in corpus
+    assert "1 latent private" in corpus
+    assert "2 unknown" in corpus
+    assert "4 connections" in corpus
+    assert "0.62 connectivity" in corpus
+    assert "4 active relations" in corpus
+
+
 def test_tooltips_keep_readable_contrast_and_fit() -> None:
     assert '[data-baseweb="tooltip"]' in CSS
     assert "color:var(--paper)!important" in CSS
@@ -32,6 +121,8 @@ def test_sidebar_has_a_visible_navigation_surface(monkeypatch) -> None:
     sidebar_corpus = " ".join(block.value for block in app.sidebar.markdown)
     assert "EVENT LOG" in sidebar_corpus
     assert "SESSION STARTED" in sidebar_corpus
+    assert "INTERACTION DIAGNOSTICS" in sidebar_corpus
+    assert any(link.label == "DIALOG TESTS" for link in app.sidebar.get("page_link"))
 
     next(button for button in app.sidebar.button if button.label == "VOICES").click().run(timeout=20)
     sidebar_corpus = " ".join(block.value for block in app.sidebar.markdown)

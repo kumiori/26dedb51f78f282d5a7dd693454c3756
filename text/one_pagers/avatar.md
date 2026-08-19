@@ -1,0 +1,134 @@
+# TAKE OVER
+
+### interactive in progress / extinction in progress
+
+There is a church.
+
+More precisely, there is what remains of one.
+
+Stone, apertures, funerary inscriptions, broken surfaces, light, acoustic cavities. An architecture whose original assembly has disappeared. The distinction matters because before _church_ became the name of the building and of the institution, _ekklesía_ named an assembly. People called together.
+
+Here the architecture remains.
+
+The ecclesia does not.
+
+This is our initial condition.
+
+TAKE OVER starts from what remains and asks what can happen next.
+
+A photographic sequence moves through abandoned churches, bodies, openings and objects whose meaning changes frame to frame. A black square appears. At first it has no known function. It is exposed to the outside, carried, displaced, observed. It becomes signal, token, code, portal.
+
+Nothing here is introduced to explain what came before.
+
+The image does not explain the sound.
+The sound does not close the image.
+A voice does not resolve the photograph.
+
+Each produces another possible direction.
+
+[
+\text{image}\rightarrow\text{voice}\rightarrow\text{sound}
+\rightarrow\text{person}\rightarrow\text{practice}
+\rightarrow\text{relation}\rightarrow\text{next}.
+]
+
+I come to this project from theoretical mechanics and applied mathematics, where I work on irreversible systems, instability, singular perturbations and forms of analysis that begin precisely where an algebraic description stops being enough. A small perturbation can leave the state almost unchanged. Or it can change the admissible trajectory completely. Once the system moves, returning to the previous state may no longer be possible.
+
+I look at community in much the same way.
+
+Not as an object.
+Not as a sum of individuals.
+Not as consensus.
+
+As an evolving configuration of relations.
+
+TAKE OVER therefore begins as an individual application and immediately develops a problem with remaining individual.
+
+Ave Palm brings another photographic trajectory through abandoned architectures, bodies, movement and cyanotype. Mai-Brit Tänava first appears inside the image and then speaks from it. Kenn-Eerik Kannike introduces listening, field recording and electronic sound. Their contributions remain attributable. We are not trying to manufacture anonymous collective authorship.
+
+What matters is what appears between them.
+
+[
+\mathcal W
+==========
+
+{\text{image},\text{voice},\text{sound},\text{body},\text{practice},\ldots}
++\mathcal R ,
+]
+
+with (\mathcal R) the evolving set of relations that we cannot prescribe in advance.
+
+This is where the project becomes a game.
+
+Not a game in the sense that nothing is at stake. Quite the opposite.
+
+The open call gives us a finite surface. Fifteen photographic positions.
+
+We deliberately allocate twelve.
+
+[
+12+\square+\square+\square=15.
+]
+
+Three positions remain open.
+
+Not because material is missing.
+
+Because somebody is.
+
+This is a small perturbation to the usual logic of an application. Instead of maximizing occupation of the available surface, we introduce vacancy as a condition for something else to enter. Twenty percent of the scarce photographic estate is therefore reserved for contributions that have not surfaced yet.
+
+The vacancies are not outside the work.
+
+They are active variables.
+
+The exhibition starts from the wall. Photographs connect through QR portals to voices, field recordings, sound and an evolving digital surface. The wall is therefore not simply where the work is displayed.
+
+The wall is an initial condition.
+
+TAKE OVER goes through it.
+
+The opening is the first activation: photography, voice, situated sound, movement. From there, according to the people and resources that enter the process, another trajectory may develop: live sound, performance, food, conversation, night.
+
+These are not programme items to be filled.
+
+Each practice enters because someone brings it.
+
+This returns us to the abandoned church.
+
+The old assembly has disappeared while its architecture survives. TAKE OVER does not propose to restore it. There is no common belief to recover and no previous order to reconstruct.
+
+The question is different:
+
+Can a new assembly emerge from the remains without reproducing the structure that preceded it?
+
+Can people enter without being absorbed?
+
+Can difference remain visible while relations grow?
+
+Can an exhibition produce consequences beyond the object that initiated them?
+
+In mechanics we would say that the trajectory is not known from the initial condition alone. Stability may be lost. Bifurcations appear. Constraints matter. History matters. Irreversibility matters.
+
+Here too.
+
+Someone enters.
+Something changes.
+Another possibility becomes admissible.
+
+Then another person enters.
+
+The configuration changes again.
+
+TAKE OVER is therefore not a finished work waiting for an audience.
+
+It is an initial condition looking for consequences.
+
+**TAKE OVER THE WALL.
+TAKE OVER THE OPENING.
+TAKE OVER THE SOUND.
+TAKE OVER WHAT FOLLOWS.**
+
+Then, crucially:
+
+**PASS IT ON.**

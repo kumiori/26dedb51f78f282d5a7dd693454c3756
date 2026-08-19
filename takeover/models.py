@@ -10,6 +10,11 @@ ENTITY_TYPES = ("person", "photograph", "audio")
 STAGES = ("application", "activation", "production", "exhibition", "propagation")
 
 
+def entity_type_label(entity_type: str) -> str:
+    """Return the public ontology label without changing registry identifiers."""
+    return "Person • Alien" if entity_type == "person" else entity_type.upper()
+
+
 @dataclass(frozen=True)
 class Entity:
     id: str
@@ -47,4 +52,3 @@ class Necessity:
     stage: str
     status: str
     description: str = ""
-

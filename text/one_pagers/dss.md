@@ -1,0 +1,88 @@
+## TAKE OVER
+
+### interactive in progress / extinction in progress
+
+A church is first a building. Then it is an image of a building. Then, perhaps, it is again an assembly.
+
+TAKE OVER begins with abandoned churches: emptied architectures, funerary stones, apertures, bodies, fragments. What has disappeared is as important as what remains.
+
+The word _ecclesia_ once named an assembly before it named its architectural enclosure. Here the enclosure persists. The assembly is absent.
+
+This absence is not neutral.
+
+A ruin is never merely empty. It is occupied by history, memory, abandonment, previous uses, previous beliefs. To photograph it is already to enter into relation with what is no longer present.
+
+Into these spaces comes a black square.
+
+At first it is opaque. Then it becomes object, signal, code, portal. It passes from hand to hand, image to image. Its meaning is not fixed by appearance. It changes through use.
+
+The QR code extends this operation. It does not explain the photograph. Explanation would close the image too quickly. Instead, the code opens the image onto another medium: voice, field recording, sound, another person.
+
+Photography becomes porous.
+
+Image opens to voice. Voice opens to sound. Sound opens to another person. Another person brings another practice.
+
+The work is not only what is shown.
+
+The work is also what passes between what is shown.
+
+Community, in this sense, is not a subject represented by photographs. It is not the warm image of togetherness. It is a structure of relations, provisional and unstable.
+
+The question is not: _What do these people have in common?_
+
+The question is: _What can they make possible for one another?_
+
+The application itself accepts this risk.
+
+Fifteen photographic positions are available. Twelve are initially occupied.
+
+[
+12+\square+\square+\square=15
+]
+
+Three remain open.
+
+The emptiness is deliberate. The vacancies are not evidence of incompletion. They are a refusal to confuse completeness with saturation.
+
+To leave space is also an action.
+
+The initial participants retain their names, their authorship, their differences. Andrés A. León Baldelli / KUMIORI brings the photographic sequence. Ave Palm introduces another photographic language through abandoned architecture, bodies, movement and cyanotype. Mai-Brit Tänava appears first as an image and then speaks from within it. Kenn-Eerik Kannike extends the project through situated sound and live electronic performance.
+
+The collective does not require anonymity.
+
+Difference is not an obstacle to community. It is its material.
+
+The exhibition begins on the wall, but the wall is not its limit.
+
+Photographs connect to voices. Voices connect to sound. Sound may become performance. Performance may become gathering. Food, movement, night, translation, conversation may enter later.
+
+Not because an exhibition must become “immersive.”
+
+Because one medium may create the conditions for another.
+
+The wall is the initial condition.
+
+The opening alters it.
+
+The public alters it again.
+
+The abandoned church offers the project its central image: an architecture whose original assembly has vanished.
+
+TAKE OVER asks whether another assembly can form there without pretending to restore the old one.
+
+Not resurrection.
+
+Recomposition.
+
+Not consensus.
+
+Response.
+
+Not possession.
+
+Transmission.
+
+**TAKE OVER THE WALL.
+TAKE OVER THE OPENING.
+TAKE OVER THE SOUND.
+PASS IT ON.**

@@ -20,6 +20,44 @@ NECESSITY_ROWS = (
 )
 
 
+# RC0's depth-structured social field is code-owned until the public
+# contribution flow opens. Depth is semantic: 0 foreground, 1 latent known,
+# 2 latent private, 3 unknown.
+SEED_ENTITIES = (
+    Entity("kumiori", "person", "KUMIORI", "Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0}),
+    Entity("ave", "person", "Ave", "Person • Alien / artist / application", metadata={"depth": 0}),
+    Entity("mai_brit", "person", "Mai-Brit", "Person • Alien / voice / application", metadata={"depth": 0}),
+    Entity("kenn_eerik", "person", "Kenn-Eerik", "Person • Alien / sound / application", metadata={"depth": 0}),
+)
+PRESEED_ENTITIES = (
+    Entity("graziano", "person", "Graziano", "Person • Alien / potential / application", status="latent_known", metadata={"depth": 1}),
+    Entity("michela", "person", "Michela", status="latent_private", metadata={"internal_name": "Michela", "depth": 2}),
+    Entity("latent_01", "person", "latent_01", status="unknown", metadata={"depth": 3}),
+    Entity("latent_02", "person", "latent_02", status="unknown", metadata={"depth": 3}),
+)
+SEED_RELATIONS = (
+    Relation("seed-kumiori-ave", "kumiori", "ave", "collaborates_with"),
+    Relation("seed-kumiori-mai-brit", "kumiori", "mai_brit", "collaborates_with"),
+    Relation("seed-kumiori-kenn-eerik", "kumiori", "kenn_eerik", "collaborates_with"),
+    Relation("seed-ave-kenn-eerik", "ave", "kenn_eerik", "collaborates_with"),
+)
+
+
+def with_rc0_seeds(
+    entities: list[Entity], relations: list[Relation]
+) -> tuple[list[Entity], list[Relation]]:
+    """Overlay the submission kernel without writing into the backing registry."""
+    entity_ids = {entity.id for entity in entities}
+    relation_ids = {relation.id for relation in relations}
+    return (
+        [
+            *entities,
+            *(entity for entity in (*SEED_ENTITIES, *PRESEED_ENTITIES) if entity.id not in entity_ids),
+        ],
+        [*relations, *(relation for relation in SEED_RELATIONS if relation.id not in relation_ids)],
+    )
+
+
 class Registry(Protocol):
     def list_entities(self) -> list[Entity]: ...
     def list_relations(self) -> list[Relation]: ...

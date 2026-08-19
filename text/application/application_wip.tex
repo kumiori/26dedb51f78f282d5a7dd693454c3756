@@ -1,10 +1,11 @@
 %!TEX TS-program = xelatex
 \documentclass[10pt]{article}
 \usepackage[a4paper,margin=0mm]{geometry}
-\usepackage{fontspec}
+\usepackage[no-math]{fontspec}
 \usepackage{tikz}
 \usepackage{amsmath}
 \usepackage{amssymb}
+\usepackage{bm}
 \usepackage{graphicx}
 \usepackage{xcolor}
 \usepackage[protrusion=true,expansion=false]{microtype}
@@ -14,6 +15,7 @@
 \usepackage{setspace}
 \usepackage{calc}
 \usepackage{array}
+\usepackage{multicol}
 \usepackage{hyperref}
 \hypersetup{hidelinks}
 
@@ -64,6 +66,8 @@
 \SetMathAlphabet{\mathit}{bold}{OT1}{cmr}{bx}{it}
 \SetMathAlphabet{\mathsf}{bold}{OT1}{cmr}{bx}{n}
 \SetMathAlphabet{\mathtt}{bold}{OT1}{cmr}{bx}{n}
+% Force visibly bold Computer Modern mathematics without borrowing the text font.
+\newcommand{\CMboldmath}[1]{{\boldmath\ensuremath{\boldsymbol{#1}}}}
 
 \newcommand{\meta}[2]{%
   \begin{tikzpicture}[remember picture,overlay]
@@ -73,7 +77,7 @@
   \end{tikzpicture}\par}
 
 \newcommand{\folio}[1]{\begin{tikzpicture}[remember picture,overlay]
-\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 19};
+\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 22};
 \end{tikzpicture}\par}
 
 \newcommand{\statement}[1]{{\RaggedRight\displayfont\color{signal}\fontsize{36}{34}\selectfont\MakeUppercase{#1}\par}}
@@ -110,6 +114,25 @@
       at (31.5,-3) {#4};
   \end{tikzpicture}}
 
+\newcommand{\masonrywidth}[5]{%
+  \begin{scope}
+    \clip (#2,#3) rectangle ++(#4,-#5);
+    \node[anchor=center,inner sep=0] at ({#2+#4/2},{#3-#5/2})
+      {\includegraphics[width=#4mm]{#1}};
+  \end{scope}}
+\newcommand{\masonryheight}[5]{%
+  \begin{scope}
+    \clip (#2,#3) rectangle ++(#4,-#5);
+    \node[anchor=center,inner sep=0] at ({#2+#4/2},{#3-#5/2})
+      {\includegraphics[height=#5mm]{#1}};
+  \end{scope}}
+\newcommand{\missingmasonry}[4]{%
+  \draw[signal,line width=.55pt] (#1,#2) rectangle ++(#3,-#4);
+  \draw[signal,line width=.7pt] (#1,#2)--++(#3,-#4)
+    (#1,{#2-#4})--++(#3,#4);
+  \node[fill=paper,inner sep=1.2mm,font=\metafont\fontsize{6.2}{7}\selectfont]
+    at ({#1+#3/2},{#2-#4/2}) {YET MISSING};}
+
 \newcommand{\networkbg}[1]{%
 \begin{tikzpicture}[remember picture,overlay]
 \foreach \x/\y in {20/25,44/18,72/28,88/46,67/67,38/72,16/58}{\fill[black] ([xshift=\x mm,yshift=\y mm]current page.south west) circle (.8pt);}
@@ -125,7 +148,8 @@
 \begin{center}
   {\rmfamily\itshape\fontsize{12}{15}\selectfont (the process of)}\par
   \vspace{5mm}
-  {\rmfamily\bfseries\fontsize{90}{88}\selectfont +\kern-.08em*\kern-.08em/}\par
+  % Genuine Computer Modern mathematics, enlarged without changing family.
+  {\boldmath\scalebox{4.15}{$\displaystyle \boldsymbol{+\! *\! /}$}}\par
   \vspace{7mm}
   {\metafont\fontsize{9}{12}\selectfont INTERACTIVE IN PROGRESS}\par
   \vspace{16mm}
@@ -379,11 +403,13 @@
   \sectionnumber{1}\par\vspace{1mm}
   {\RaggedRight\displayfont\color{signal}\fontsize{23}{24}\selectfont WHAT GROWS BETWEEN THEM\\IS THE WORK.}\par
   \vspace{12mm}
-  {\color{signal}\fontsize{15}{22}\selectfont
+  {\color{signal}\fontsize{17}{25}\selectfont\boldmath
     \[
-      \mathcal W_t=\{w_1,w_2,\ldots,w_n\},\qquad
-      \mathcal R_t\subseteq\mathcal W_t\!\times\!\mathcal W_t,\qquad
-      \mathcal G_t=(\mathcal W_t,\mathcal R_t).
+      \begin{aligned}
+      &\boldsymbol{\mathcal W_t=\{w_1,w_2,\ldots,w_n\}},\\
+      &\boldsymbol{\mathcal R_t\subseteq\mathcal W_t\!\times\!\mathcal W_t},\\
+      &\boldsymbol{\mathcal G_t=(\mathcal W_t,\mathcal R_t)}.
+      \end{aligned}
     \]}
   \vspace{12mm}
   {\fontsize{10.8}{14}\selectfont
@@ -478,7 +504,7 @@
     \draw[signal,line width=.8pt] (0,0)--(121,0);
     \foreach \x/\lab in {1/APPLY,28/HUMAN,59/OPENING,91/NIGHT,121/?}{\fill[signal] (\x,0) circle (1.7pt);\node[anchor=north,text=signal,font=\metafont\fontsize{6.5}{8}\selectfont] at (\x,-4) {\lab};}
     \draw[signal,dashed,line width=.5pt] (59,-18)--(59,38);
-    \node[anchor=south west,align=left,text width=50mm,font=\fontsize{11}{14}\selectfont] at (61,10) {photography + voice +\\situated sound + movement};
+    \node[anchor=south west,align=left,text width=50mm,font=\fontsize{11}{14}\selectfont] at (61,10) {photography $+$ voice $+$\\situated sound $+$ movement};
   \end{tikzpicture}
   \vspace{34mm}
   {\fontsize{12}{16}\selectfont Concert, live sound, performance, food, and night are possible consequences, not requirements. Each practice enters as someone brings it. Something happens. There is an interval. What follows is changed by it.}
@@ -548,7 +574,7 @@
 \networkbg{15}
 \vspace*{58mm}
 \begin{center}
-  {\rmfamily\bfseries\fontsize{96}{92}\selectfont +}\par
+  {\scalebox{4.4}{$\displaystyle +$}}\par
   \vspace{10mm}
   {\displayfont\color{signal}\fontsize{39}{42}\selectfont FORWARD.}\par
   \vspace{20mm}
@@ -559,37 +585,103 @@
 \end{center}
 \newpage
 
-% 16 CREDITS
-\meta{APPLICATION}{CURRENT ALLOCATION}\folio{19}\sidelegend
-\vspace*{45mm}\hspace*{62mm}
-\begin{minipage}{\mainmeasure}
-  {\RaggedRight\displayfont\fontsize{27}{28}\selectfont IMAGE CREDITS /\\CURRENT ALLOCATION.}\par
-  \vspace{15mm}
-  \renewcommand{\arraystretch}{1.45}
-  \setlength{\tabcolsep}{2mm}
-  \begin{tabular}{r l@{\hspace{8mm}}r l}
-    01 & AVE [provisional selection] & 09 & kumiori                    \\
-    02 & AVE [provisional selection] & 10 & UNALLOCATED                 \\
-    03 & UNALLOCATED                 & 11 & AVE [provisional selection] \\
-    04 & AVE [provisional selection] & 12 & kumiori                    \\
-    05 & kumiori                     & 13 & AVE [provisional selection] \\
-    06 & AVE [provisional selection] & 14 & kumiori                    \\
-    07 & AVE [provisional selection] & 15 & UNALLOCATED                 \\
-    08 & kumiori                     & 16 & kumiori                    \\
-  \end{tabular}\par
-  \vspace{24mm}
-  {\fontsize{12}{16}\selectfont The precise installation responds to the physical dimensions and conditions of the Community Gallery. The sketch describes a system of relations, not a hanging plan.}
-  \vspace{17mm}
-  \hfill
-  \begin{minipage}{50mm}
+% 16 SELECTED IMAGES / OPEN POSITIONS
+\meta{PHOTOGRAPH}{SELECTION / VACANCY}\folio{19}\sidelegend
+\vspace*{34mm}\hspace*{14mm}
+\begin{minipage}{179mm}
+  {\RaggedRight\displayfont\fontsize{25}{25}\selectfont
+    SELECTED IMAGES /\\POSITIONS HELD OPEN.}\par
+  \vspace{7mm}
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    % The opening image is the two-column anchor: twice the former width.
+    \masonrywidth{assets/selection/photo-000.png}{0}{0}{116}{82}
+    % The second selection is rotated upright and completes the top register.
+    \masonryheight{assets/selection/photo-001-rotated.png}{119}{0}{60}{82}
+    % Lower register: unequal columns continue the masonry rhythm.
+    \masonryheight{assets/selection/photo-002.png}{0}{-84}{55}{65}
+    \missingmasonry{0}{-151}{55}{36}
+
+    \missingmasonry{58}{-84}{72}{28}
+    \masonrywidth{assets/selection/photo-004.png}{58}{-114}{72}{42}
+    \missingmasonry{58}{-158}{72}{30}
+
+    \missingmasonry{133}{-84}{45}{60}
+    \missingmasonry{133}{-146}{45}{41}
+  \end{tikzpicture}\par
+  \vspace{4mm}
+  \smallcapsline{Four selected images / four positions held open / one plate follows.}
+\end{minipage}
+\newpage
+
+% 17 FOURTH IMAGE / FULL PLATE
+\thispagestyle{empty}
+\null
+\begin{tikzpicture}[remember picture,overlay]
+  \node[anchor=center,inner sep=0] at (current page.center)
+    {\includegraphics[width=\paperwidth,height=\paperheight,keepaspectratio]{assets/selection/photo-003-cw.png}};
+  \fill[white] ([xshift=10mm,yshift=-10mm]current page.north west) rectangle ++(48mm,-16mm);
+  \node[anchor=north west,align=left,text width=42mm] at ([xshift=13mm,yshift=-13mm]current page.north west)
+    {\metafont\fontsize{6.5}{8}\selectfont 04 / FULL PLATE\\ROTATED 90 CW};
+  \node[anchor=south east] at ([xshift=-10mm,yshift=10mm]current page.south east)
+    {\metafont\fontsize{6.5}{8}\selectfont IMAGE / SURFACE / POSITION};
+\end{tikzpicture}
+\newpage
+
+% 18 BACK COVER / EXTRA / CREDITS
+\thispagestyle{empty}
+\null
+\begin{tikzpicture}[remember picture,overlay]
+  \node[anchor=north west,inner sep=0] at (current page.north west)
+    {\includegraphics[height=\paperheight]{assets/selection/photo-005.png}};
+  \fill[white,opacity=.86] ([xshift=10mm,yshift=-38mm]current page.north west) rectangle ++(190mm,-78mm);
+  \fill[white,opacity=.90] ([xshift=10mm,yshift=-10mm]current page.north west) rectangle ++(43mm,-17mm);
+  \node[anchor=north west,align=left,text width=38mm] at ([xshift=13mm,yshift=-13mm]current page.north west)
+    {\metafont\fontsize{6.5}{8}\selectfont EXTRA / NOT IN\\CURRENT SELECTION};
+\end{tikzpicture}
+\vspace*{112mm}\hspace*{14mm}
+\begin{minipage}{179mm}
+  \begin{minipage}[t]{112mm}
+    {\RaggedRight\displayfont\fontsize{25}{25}\selectfont
+      WE ARE COLLECTIVELY RESPONSIBLE\\FOR OUR PRODUCTION.}\par
+    \vspace{5mm}
+    {\RaggedRight\displayfont\fontsize{19}{21}\selectfont PLAY YOUR POSITION.}\par
+    \vspace{8mm}
+    {\metafont\fontsize{6.5}{8}\selectfont
+      CREDITS / Andr\'es A. Le\'on Baldelli / kumiori III / Ave Palm /\\
+      Mai-Brit T\"anava / Kenn-Eerik Kannike.\\[2mm]
+      The precise installation responds to the physical dimensions and conditions of the Community Gallery. The sketch describes a system of relations, not a fixed hanging plan.}
+  \end{minipage}\hfill
+  \begin{minipage}[t]{53mm}
     \centering
-    \href{https://takeover-fotografiska.streamlit.app/}{%
-      \includegraphics[width=43mm]{assets/takeover_fotografiska_qr.png}}\par
-    \vspace{3mm}
-    \smallcapsline{ENTER THE CURRENT STATE}\par
-    \vspace{1mm}
-    {\metafont\fontsize{6.2}{7.5}\selectfont
-      takeover-fotografiska.streamlit.app}
+    \href{https://takeover-fotografiska.streamlit.app/?a=application}{%
+      \includegraphics[width=48mm]{assets/qr_application.png}}\par
+    \vspace{2mm}
+    \smallcapsline{ENTER / APPLICATION}\par
+    {\metafont\fontsize{5.8}{7}\selectfont
+      takeover-fotografiska.streamlit.app\\?a=application}
   \end{minipage}
+\end{minipage}
+\newpage
+
+% 19 SUGGESTED LISTENING / FINE PRINT
+\thispagestyle{empty}
+\vspace*{10mm}\hspace*{10mm}
+\begin{minipage}{190mm}
+  \hrule height .7pt
+  \vspace{2.5mm}
+  {\metafont\fontsize{7}{8}\selectfont SUGGESTED LISTENING / TERMS AND CONDITIONS OF ATTENTION / STATUS: OPEN}\par
+  \vspace{1.5mm}
+  \hrule height .3pt
+  \vspace{3mm}
+  {\fontsize{5.6}{6.35}\selectfont\justifying
+  \setlength{\columnsep}{5mm}
+  \setlength{\columnseprule}{.25pt}
+  \begin{multicols}{3}
+  \textbf{PLEASE READ THIS LISTENING INFORMATION CAREFULLY.} An initial listening field around TAKE OVER. Not a soundtrack and not a closed playlist. Records may enter, leave, or acquire new relations as the process develops. By continuing, the listener acknowledges that sequence does not imply hierarchy, that identification may remain provisional, and that relations are active rather than exhaustive. \textbf{01 / JOHANN SEBASTIAN BACH.} Helmut Walcha, \emph{Toccaten und Fugen / Toccatas and Fugues}, LP, Archiv Produktion; Frans-Caspar-Schnitger-Orgel, St. Laurenskerk, Alkmaar; relations: church, organ, architecture, fugue, recurrence; status: identified. Church as resonant architecture; contrapuntal voices separating, returning and remaining autonomous while producing a whole. \textbf{02 / CLASSICAL RITUAL COMPILATION.} \emph{Carmina Burana / Chevauch\'ee des Walkyries / Gnossiennes}; visible works: \emph{Carmina Burana (O Fortuna)}, Erik Satie's \emph{4\`eme Gnossienne} and \emph{5\`eme Gnossienne}; EMI, LP; relations: ritual, fate, repetition, suspension; status: partially identified. A useful collision: monumentality and ritual against Satie's sparse, suspended time. \textbf{03 / AFRICAN HEAD CHARGE.} \emph{Churchical Chant of the Iyabinghi}, LP; relations: chant, assembly, ritual, dub, ecclesia, collective voice; status: identified. Particularly close to the ecclesia thread: assembly enacted through rhythm, chant and collective vocal presence rather than architecture. \textbf{04 / SEPULTURA.} \emph{Arise}, LP; relations: extinction, emergence, violence, rupture, arise; status: identified. Almost absurdly direct in relation to EXTINCTION IN PROGRESS: destruction paired with the imperative to arise. \textbf{05 / PUBLIC SERVICE BROADCASTING.} \emph{The War Room}, record; relations: archive, broadcast, signal, ruins, public voice; status: identified. Archive becomes transmission. Existing recorded material is reactivated and made to speak in another temporal context. \textbf{06 / PROVISIONAL IDENTIFICATION.} Visible title: \emph{AT REAL IRREALE... / ... REALT\`A}; visible artist: KINA; LP; relations: real, unreal, mediation, image, signal; status: needs identification. Keep provisional until the exact artist, title, and edition are checked. The visible real/irreale language is already relevant to the portal logic. \textbf{07 / RAGE AGAINST THE MACHINE.} \emph{Rage Against the Machine}, LP; relations: resistance, body, institution, combustion, political action; status: identified. Body as irreversible political signal. An image that cannot be separated comfortably from the act it records. \textbf{08 / WOLFGANG AMADEUS MOZART.} Berliner Philharmoniker, Herbert von Karajan, \emph{Eine kleine Nachtmusik / Divertimento KV 287}, Deutsche Grammophon, LP; relations: night, divertimento, gathering, social music; status: identified. Night as social space rather than darkness alone. Music written to occupy an occasion. \textbf{09 / FABRIZIO DE ANDR\'E.} \emph{Non al denaro non all'amore n\'e al cielo}; visible track: \emph{Un blasfemo}; LP; relations: cemetery, dead speaking, biography, community, memory; status: identified. Extremely close to the photographic narrative: a community reconstructed through voices of the dead. The cemetery speaks person by person. \textbf{10 / COLLAGE.} \emph{K\"aokiri}, LP; relations: Estonia, polyphony, folk memory, collective voice, Tallinn; status: identified. A local and polyphonic anchor: inherited song reorganised through a collective vocal language. \textbf{11 / DJ METATRON.} \emph{2 The Sky}, Giegling, catalogue Giegling 18, 2016, record; cover: white sleeve with two hand-drawn blue crosses; relations: sky, ascent, electronic music, signal; status: identified. The white sleeve with the two hand-drawn blue crosses; the cover match is confirmed. \textbf{12 / GLASS BEAMS.} \emph{Mahal}, Ninja Tune, 2024, EP; copper/gold sleeve; visible tracks: \emph{Horizon}, \emph{Mahal}, \emph{Orb}, \emph{Snake Oil}, \emph{Black Sand}; relations: horizon, ritual, psychedelic music, mediation; status: identified. The copper/gold record at upper right. A five-track EP moving through horizon, orbit, ritual and mirage-like repetition. \textbf{GENERAL PROVISIONS.} Listening may occur in whole or in part, in order or out of order, alone or in assembly, before, during, or after the exhibition. No entry shall be construed as a mandatory soundtrack, definitive interpretation, fixed programme, endorsement of closure, or waiver of the listener's right to introduce another relation. The field remains open.
+  \end{multicols}}
+  \vfill
+  \hrule height .3pt
+  \vspace{2mm}
+  {\metafont\fontsize{5.5}{6.5}\selectfont TAKE OVER / LISTENING ADDENDUM / SOURCE: TAKEOVER-LISTENING V1 / SUBJECT TO CHANGE WITHOUT NOTICE}
 \end{minipage}
 \end{document}

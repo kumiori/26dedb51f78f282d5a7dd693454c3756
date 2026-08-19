@@ -8,14 +8,15 @@ import re
 import html
 
 import streamlit as st
-import streamlit.components.v1 as components
 
+from takeover.analytics import emit_google_event, normalise_activation
 from takeover.call import load_call
 from takeover.graph import build_graph_html
 from takeover.events import list_events, record_event, record_event_once
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
-from takeover.models import ENTITY_TYPES, STAGES, Entity
-from takeover.registry import SessionRegistry
+from takeover.listening import load_listening
+from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
+from takeover.registry import SessionRegistry, with_rc0_seeds
 from takeover.resources import build_resources_figure, load_resources
 from takeover.style import CSS
 from takeover.timeline import build_time_mapping_figure, build_time_mapping_rows, build_timeline_figure, load_trajectory
@@ -25,6 +26,7 @@ ROOT = Path(__file__).resolve().parent
 TRAJECTORY = ROOT / "config" / "takeover_trajectory.yaml"
 RESOURCES = ROOT / "config" / "takeover_resources.yaml"
 CALL = ROOT / "config" / "takeover_call.yaml"
+LISTENING = ROOT / "config" / "takeover_listening.yaml"
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -33,7 +35,18 @@ t = lambda key: translate(key, language)
 
 st.set_page_config(page_title=t("project_name"), page_icon="+", layout="wide", initial_sidebar_state="expanded")
 st.markdown(CSS, unsafe_allow_html=True)
-record_event_once(st.session_state, "session-started", "event_session_started")
+session_event_new = record_event_once(st.session_state, "session-started", "event_session_started")
+
+activation = normalise_activation(str(st.query_params.get("a", "") or ""))
+activation_event_new = False
+if activation:
+    activation_event_new = record_event_once(
+        st.session_state,
+        f"invitation-activation-{activation}",
+        "event_invitation_activation",
+        activation,
+        "query:a",
+    )
 
 
 def _secrets_available() -> bool:
@@ -63,6 +76,32 @@ def _notion_token_value() -> str:
         return str(notion.get("token") or notion.get("api_key") or "").strip()
     except Exception:
         return ""
+
+
+def _analytics_measurement_id() -> str:
+    return os.getenv("TAKEOVER_GA_MEASUREMENT_ID", "").strip() or _secret("TAKEOVER_GA_MEASUREMENT_ID")
+
+
+measurement_id = _analytics_measurement_id()
+if session_event_new:
+    emit_google_event(
+        measurement_id,
+        key="takeover-session-started",
+        event_name="takeover_session_started",
+        params={"event_category": "takeover", "event_label": "session", "value": 1},
+    )
+if activation_event_new:
+    emit_google_event(
+        measurement_id,
+        key=f"takeover-invitation-{activation}",
+        event_name="invitation_activation",
+        params={
+            "event_category": "invitation",
+            "event_label": activation,
+            "activation_source": activation,
+            "value": 1,
+        },
+    )
 
 
 @st.cache_resource
@@ -98,7 +137,7 @@ def access_door() -> None:
 
 @st.dialog(t("node"), width="large")
 def node_dialog(entity: Entity) -> None:
-    st.markdown(f'<div class="node-kind">{entity.type}</div>', unsafe_allow_html=True)
+    st.markdown(f'<div class="node-kind">{html.escape(entity_type_label(entity.type))}</div>', unsafe_allow_html=True)
     st.header(entity.title)
     if entity.label:
         st.write(entity.label)
@@ -109,6 +148,55 @@ def node_dialog(entity: Entity) -> None:
         for key, value in entity.metadata.items():
             st.write(f"{key}: {value}")
     st.caption(f'{t("registry_id")} · {entity.id}')
+
+
+@st.dialog(t("connection"), width="large")
+def relation_dialog(relation, entities: list[Entity]) -> None:
+    names = {entity.id: entity.title for entity in entities}
+    source = names.get(relation.source, relation.source)
+    target = t("start_here") if relation.target == "*" else names.get(relation.target, relation.target)
+    st.markdown(f'<div class="node-kind">{t("active_relation")}</div>', unsafe_allow_html=True)
+    st.header(f"{source} ↔ {target}")
+    st.markdown(f'<div class="relation-role">{html.escape(relation.type.upper())}</div>', unsafe_allow_html=True)
+    st.caption(f'{t("stage")} · {relation.stage.upper()}   /   {t("status")} · {relation.status.upper()}')
+    st.write(t("relation_explainer"))
+    st.caption(f'{t("registry_id")} · {relation.id}')
+
+
+@st.dialog(t("state_of_art"), width="large")
+def state_dialog(entities: list[Entity], relations) -> None:
+    entity_status = {entity.id: entity.status for entity in entities}
+    active = sum(
+        relation.status == "active"
+        and entity_status.get(relation.source) == "active"
+        and entity_status.get(relation.target) == "active"
+        for relation in relations
+    )
+    connectivity = (1 + len(relations)) / len(entities) if entities else 0
+    state_counts = {
+        status: sum(entity.status == status for entity in entities)
+        for status in ("active", "latent_known", "latent_private", "unknown")
+    }
+    st.markdown(f'<div class="node-kind">{t("network_state")}</div>', unsafe_allow_html=True)
+    st.header(t("state_of_art"))
+    st.write(t("state_of_art_intro"))
+    st.markdown(
+        f'<div class="state-dialog-stats"><span>{state_counts["active"]} {t("active_people").lower()}</span>'
+        f'<span>{state_counts["latent_known"]} {t("latent_known").lower()}</span>'
+        f'<span>{state_counts["latent_private"]} {t("latent_private").lower()}</span>'
+        f'<span>{state_counts["unknown"]} {t("unknown").lower()}</span>'
+        f'<span>{len(relations)} {t("connections").lower()}</span>'
+        f'<span>{connectivity:.2f} {t("connectivity").lower()}</span>'
+        f'<span>{active} {t("active_relations").lower()}</span></div>',
+        unsafe_allow_html=True,
+    )
+    for key, description in (
+        ("node", "node_question"),
+        ("connection", "connection_question"),
+        ("contribution", "contribution_question"),
+        ("state_of_art", "state_question"),
+    ):
+        st.markdown(f'**{t(key)}** → {t(description)}')
 
 
 def render_nav(current: str) -> None:
@@ -237,30 +325,97 @@ def render_sidebar(current: str, mode: str) -> None:
             detail = html.escape(str(event.get("detail") or ""))
             suffix = " · ".join(value for value in (target, detail) if value)
             st.markdown(f'<div class="event-log-row"><time>{occurred} UTC</time><strong>{html.escape(label)}</strong>{f"<span>{suffix}</span>" if suffix else ""}</div>', unsafe_allow_html=True)
+        st.markdown('<div class="sidebar-test-link">INTERACTION DIAGNOSTICS</div>', unsafe_allow_html=True)
+        st.page_link("pages/99_Dialog_Test.py", label="DIALOG TESTS", icon=":material/experiment:")
 
 
 def render_network(repo, mode: str) -> None:
-    entities = repo.list_entities()
-    relations = repo.list_relations()
+    entities, relations = with_rc0_seeds(repo.list_entities(), repo.list_relations())
+    process = "".join(
+        f'<p>{html.escape(t(key))}</p>'
+        for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
+    )
+    manifesto = "<br>".join(
+        html.escape(t(key))
+        for key in ("manifesto_remains", "manifesto_doors", "manifesto_listen", "manifesto_build")
+    )
+    manifesto += "<br><br>" + "<br>".join(
+        html.escape(t(key)) for key in ("manifesto_live", "manifesto_grows")
+    )
     left, right = st.columns([0.8, 1.55], gap="large")
     with left:
         st.markdown('<div class="takeover-copy">', unsafe_allow_html=True)
         st.title(t("project_name"))
         st.markdown(f'<div class="takeover-kicker">{t("interactive_progress")}</div>', unsafe_allow_html=True)
-        process = "".join(
-            f'<p>{html.escape(t(key))}</p>'
-            for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
+        st.markdown(
+            f'<section class="application-state"><strong>{t("application_window")} / {t("open")}</strong>'
+            f'<span>{t("before_submission")}</span></section>',
+            unsafe_allow_html=True,
         )
-        st.markdown(f'<div class="takeover-process">{process}</div>', unsafe_allow_html=True)
-        manifesto = "<br>".join(t(key) for key in ("manifesto_remains", "manifesto_doors", "manifesto_listen", "manifesto_build"))
-        manifesto += "<br><br>" + "<br>".join(t(key) for key in ("manifesto_live", "manifesto_grows"))
-        st.markdown(f'<div class="takeover-manifesto">{manifesto}</div>', unsafe_allow_html=True)
-        st.markdown(f'<div class="takeover-entry"><strong>{t("landing_action")}</strong><span>{t("open_node")}</span></div>', unsafe_allow_html=True)
+        uncertainty_rows = "".join(
+            f'<div><span>{t(label)}</span><b>{t(state)}</b></div>'
+            for label, state in (
+                ("participants", "unknown"),
+                ("production_budget", "none_secured"),
+                ("jury", "unknown"),
+                ("selection", "unknown"),
+                ("response_time", "unknown"),
+                ("exhibition_feasibility", "conditional"),
+                ("future_contributors", "open"),
+                ("next_state", "unresolved"),
+            )
+        )
+        st.markdown(
+            f'<section class="uncertainty-state"><small>{t("current_state")}</small>{uncertainty_rows}'
+            f'<p>{t("uncertainty_statement")}</p></section>',
+            unsafe_allow_html=True,
+        )
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
-        components.html(build_graph_html(entities, relations, t("start_here"), t("you"), t("invitation"), t("nodes"), t("connections"), t("connections_node")), height=610, scrolling=False)
+        st.html(
+            build_graph_html(
+                entities, relations, t("start_here"), t("state_of_art"),
+                t("nodes"), t("connections"), t("connectivity"),
+                t("active_relations"), t("additions_opening_next"),
+                t("active_people"), t("latent_known"), t("latent_private"), t("unknown"),
+            )
+        )
+    st.markdown(
+        '<section class="takeover-three-blocks">'
+        f'<article class="takeover-process">{process}</article>'
+        f'<article class="takeover-manifesto">{manifesto}</article>'
+        f'<article class="takeover-entry"><strong>{html.escape(t("landing_action"))}</strong><span>{html.escape(t("open_node"))}</span></article>'
+        '</section>',
+        unsafe_allow_html=True,
+    )
     st.markdown(f'<section class="handoff">{t("pass_it_on")}</section>', unsafe_allow_html=True)
-    st.markdown(f'<section class="listening"><small>{t("suggested_listening")}</small><span>{t("listening_work")}</span></section>', unsafe_allow_html=True)
+    listening_payload = load_listening(LISTENING)
+    listening = listening_payload["suggested_listening"]
+    st.markdown(
+        f'<section class="listening"><small>{html.escape(str(listening["title"]).upper())}</small>'
+        f'<span>{len(listening["items"])} RECORDS · {html.escape(str(listening["status"]).upper())}</span></section>',
+        unsafe_allow_html=True,
+    )
+    if listening_payload.get("presentation", {}).get("show_addendum", False):
+        st.markdown(
+            f'<section class="listening-addendum"><small>ADDENDUM / {html.escape(str(listening["status"]).upper())}</small>'
+            f'<h2>{html.escape(str(listening["title"]))}</h2><p>{html.escape(str(listening["description"]))}</p></section>',
+            unsafe_allow_html=True,
+        )
+        for item in listening["items"]:
+            artist = item.get("artist") or item.get("artist_visible") or ""
+            title = item.get("title") or item.get("title_visible") or ""
+            performer = item.get("performer") or ""
+            relation_labels = " · ".join(str(value).replace("_", " ").upper() for value in item.get("relation", []))
+            st.markdown(
+                '<article class="listening-item">'
+                f'<small>{html.escape(str(item["status"]).replace("_", " ").upper())} / {html.escape(str(item["format"]).upper())}</small>'
+                f'<h3>{html.escape(str(title))}</h3><strong>{html.escape(str(artist))}</strong>'
+                f'{f"<span>{html.escape(str(performer))}</span>" if performer else ""}'
+                f'<p>{html.escape(str(item["note"]))}</p><footer>{html.escape(relation_labels)}</footer>'
+                '</article>',
+                unsafe_allow_html=True,
+            )
     if str(st.query_params.get("door", "") or "") == "access":
         record_event_once(st.session_state, "access-door-open", "event_access_opened")
         access_door()
@@ -269,6 +424,20 @@ def render_network(repo, mode: str) -> None:
     if selected:
         record_event_once(st.session_state, f"node-open-{selected.id}", "event_node_opened", selected.id)
         node_dialog(selected)
+    requested_relation = str(st.query_params.get("relation", "") or "")
+    selected_relation = next((item for item in relations if item.id == requested_relation), None)
+    if selected_relation:
+        record_event_once(
+            st.session_state,
+            f"relation-open-{selected_relation.id}",
+            "event_connection_opened",
+            selected_relation.id,
+            selected_relation.type,
+        )
+        relation_dialog(selected_relation, entities)
+    if str(st.query_params.get("state", "") or "") == "art":
+        record_event_once(st.session_state, "state-of-art-open", "event_state_opened")
+        state_dialog(entities, relations)
     if os.getenv("TAKEOVER_ADMIN_MODE", "").strip() == "1":
         render_admin(repo, mode)
 
@@ -277,7 +446,7 @@ def render_admin(repo, mode: str) -> None:
     with st.expander(t("developer_add"), expanded=False):
         st.caption(t("admin_note"))
         with st.form("add-node-form", clear_on_submit=True):
-            kind = st.selectbox(t("entity_type"), ENTITY_TYPES)
+            kind = st.selectbox(t("entity_type"), ENTITY_TYPES, format_func=entity_type_label)
             title = st.text_input(t("name_title"))
             entity_id = st.text_input(t("id"), placeholder="ave")
             label = st.text_input(t("label"), placeholder="artist")
