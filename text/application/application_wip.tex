@@ -77,7 +77,7 @@
   \end{tikzpicture}\par}
 
 \newcommand{\folio}[1]{\begin{tikzpicture}[remember picture,overlay]
-\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 22};
+\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 24};
 \end{tikzpicture}\par}
 
 \newcommand{\statement}[1]{{\RaggedRight\displayfont\color{signal}\fontsize{36}{34}\selectfont\MakeUppercase{#1}\par}}
@@ -132,6 +132,17 @@
     (#1,{#2-#4})--++(#3,#4);
   \node[fill=paper,inner sep=1.2mm,font=\metafont\fontsize{6.2}{7}\selectfont]
     at ({#1+#3/2},{#2-#4/2}) {YET MISSING};}
+\newcommand{\galleryfit}[6]{%
+  \draw[signal,line width=.45pt] (#2,#3) rectangle ++(#4,-#5);
+  \node[anchor=center,inner sep=0] at ({#2+#4/2},{#3-#5/2})
+    {\includegraphics[width=\dimexpr#4mm-2mm\relax,height=\dimexpr#5mm-2mm\relax,keepaspectratio]{#1}};
+  \node[anchor=north west,fill=white,inner sep=1mm,font=\metafont\fontsize{5.8}{6.5}\selectfont]
+    at ({#2+1},{#3-1}) {#6};}
+\newcommand{\gallerymissing}[5]{%
+  \draw[signal,line width=.55pt] (#1,#2) rectangle ++(#3,-#4);
+  \draw[signal,line width=.55pt] (#1,#2)--++(#3,-#4) (#1,{#2-#4})--++(#3,#4);
+  \node[fill=white,inner sep=1mm,font=\metafont\fontsize{5.8}{6.5}\selectfont]
+    at ({#1+#3/2},{#2-#4/2}) {#5 / UNALLOCATED};}
 
 \newcommand{\networkbg}[1]{%
 \begin{tikzpicture}[remember picture,overlay]
@@ -519,12 +530,12 @@
   \vspace{18mm}
   \renewcommand{\arraystretch}{1.7}
   \setlength{\tabcolsep}{1.5mm}
-  \begin{tabular}{>{\metafont\fontsize{6.5}{8}\selectfont}p{23mm} p{69mm} >{\raggedleft\arraybackslash}p{25mm}}
+  \begin{tabular}{>{\metafont\fontsize{6.2}{7.5}\selectfont}p{34mm} p{58mm} >{\raggedleft\arraybackslash}p{25mm}}
     ELEMENT     & CONDITION                         & STATUS         \\ \hline
-    PHOTOGRAPHS & initial sequence                  & SELECTED       \\
-    AVE         & photographic contribution         & IN PROGRESS    \\
-    VOICE       & initial contribution              & AGREED         \\
-    SOUND       & field recordings / collaboration  & AGREED         \\
+    Andr\'es A. Le\'on Baldelli / kumiori III & photographs / initial sequence & SELECTED    \\
+    Ave Palm                           & cyanotypes                    & IN PROGRESS \\
+    Kenn-Eerik Kannike                 & sound / field recordings      & AGREED      \\
+    Mai-Brit T\"anava                  & voice / initial contribution  & AGREED      \\
     WEB SURFACE & operational prototype             & IN DEVELOPMENT \\
     QR / PORTAL & concept / visual language         & ESTABLISHED    \\
     UNALLOCATED & photographic and exhibition space & OPEN           \\
@@ -549,7 +560,7 @@
   \]
   \vspace{20mm}
   {\fontsize{11.5}{15}\selectfont
-    \textbf{Fixed:} the initial photographic material; the applicant; the first two Cc; the critical mass; attributable authorship; physical works linked to digital portals; space left available for others.\\[5mm]
+    \textbf{Fixed:} the initial photographic material; the applicant; the first three Cc; the critical mass; attributable authorship; physical works linked to digital portals; space left available for others.\\[5mm]
     \textbf{Open:} who enters next; which practices they bring; which relations emerge; how the opening propagates; what the wall causes.}
 \end{minipage}
 \newpage
@@ -570,7 +581,7 @@
 \newpage
 
 % 15 YOUR TURN
-\meta{OPEN}{NEXT NODE}\folio{18}\sidelegend
+\meta{OPEN}{}\folio{18}\sidelegend
 \networkbg{15}
 \vspace*{58mm}
 \begin{center}
@@ -585,35 +596,51 @@
 \end{center}
 \newpage
 
-% 16 SELECTED IMAGES / OPEN POSITIONS
+% 16 FINAL GALLERY / POSITIONS 01--08
 \meta{PHOTOGRAPH}{SELECTION / VACANCY}\folio{19}\sidelegend
 \vspace*{34mm}\hspace*{14mm}
-\begin{minipage}{179mm}
+\begin{minipage}{180mm}
   {\RaggedRight\displayfont\fontsize{25}{25}\selectfont
-    SELECTED IMAGES /\\POSITIONS HELD OPEN.}\par
+    FINAL GALLERY /\\POSITIONS 01--08.}\par
   \vspace{7mm}
   \begin{tikzpicture}[x=1mm,y=1mm]
-    % The opening image is the two-column anchor: twice the former width.
-    \masonrywidth{assets/selection/photo-000.png}{0}{0}{116}{82}
-    % The second selection is rotated upright and completes the top register.
-    \masonryheight{assets/selection/photo-001-rotated.png}{119}{0}{60}{82}
-    % Lower register: unequal columns continue the masonry rhythm.
-    \masonryheight{assets/selection/photo-002.png}{0}{-84}{55}{65}
-    \missingmasonry{0}{-151}{55}{36}
-
-    \missingmasonry{58}{-84}{72}{28}
-    \masonrywidth{assets/selection/photo-004.png}{58}{-114}{72}{42}
-    \missingmasonry{58}{-158}{72}{30}
-
-    \missingmasonry{133}{-84}{45}{60}
-    \missingmasonry{133}{-146}{45}{41}
+    \galleryfit{assets/ave/ave-01-cw.jpg}{0}{0}{87}{48}{01 / IMAGE 07 / AVE}
+    \galleryfit{assets/ave/ave-02.jpg}{92}{0}{87}{48}{02 / IMAGE 08 / AVE / HOUSE}
+    \gallerymissing{0}{-53}{87}{48}{03 / IMAGE 13}
+    \galleryfit{assets/ave/ave-03.jpg}{92}{-53}{87}{48}{04 / IMAGE 08 / AVE}
+    \galleryfit{assets/selection/photo-000.png}{0}{-106}{87}{48}{05 / IMAGE 02 / kumiori}
+    \galleryfit{assets/ave/ave-04.jpg}{92}{-106}{87}{48}{06 / IMAGE 08 / AVE}
+    \galleryfit{assets/ave/ave-05.jpg}{0}{-159}{87}{48}{07 / IMAGE 08 / AVE}
+    \galleryfit{assets/selection/photo-001-turn180.png}{92}{-159}{87}{48}{08 / IMAGE 04 / kumiori / 180}
   \end{tikzpicture}\par
   \vspace{4mm}
-  \smallcapsline{Four selected images / four positions held open / one plate follows.}
+  \smallcapsline{07 AVE / 08 AVE / 13 UNALLOCATED / 08 AVE / 02 kumiori / 08 AVE / 08 AVE / 04 kumiori.}
 \end{minipage}
 \newpage
 
-% 17 FOURTH IMAGE / FULL PLATE
+% 17 FINAL GALLERY / POSITIONS 09--16
+\meta{PHOTOGRAPH}{SELECTION / VACANCY}\folio{20}\sidelegend
+\vspace*{34mm}\hspace*{14mm}
+\begin{minipage}{180mm}
+  {\RaggedRight\displayfont\fontsize{25}{25}\selectfont
+    FINAL GALLERY /\\POSITIONS 09--16.}\par
+  \vspace{7mm}
+  \begin{tikzpicture}[x=1mm,y=1mm]
+    \galleryfit{assets/selection/photo-004-cw.png}{0}{0}{87}{48}{09 / IMAGE 03 / kumiori / 90 CW}
+    \gallerymissing{92}{0}{87}{48}{10 / IMAGE 14}
+    \galleryfit{assets/ave/ave-06-upright.jpg}{0}{-53}{87}{48}{11 / IMAGE 08 / AVE}
+    \galleryfit{assets/selection/photo-002.png}{92}{-53}{87}{48}{12 / IMAGE 01 / kumiori}
+    \galleryfit{assets/ave/ave-07-ccw.jpg}{0}{-106}{87}{48}{13 / IMAGE 08 / AVE / 90 CCW}
+    \galleryfit{assets/selection/photo-003-cw.png}{92}{-106}{87}{48}{14 / IMAGE 05 / kumiori}
+    \gallerymissing{0}{-159}{87}{48}{15 / IMAGE 15}
+    \galleryfit{assets/selection/photo-005.png}{92}{-159}{87}{48}{16 / IMAGE 06 / kumiori}
+  \end{tikzpicture}\par
+  \vspace{4mm}
+  \smallcapsline{03 kumiori / 14 UNALLOCATED / 08 AVE / 01 kumiori / 08 AVE / 05 kumiori / 15 UNALLOCATED / 06 kumiori.}
+\end{minipage}
+\newpage
+
+% 18 FOURTH IMAGE / FULL PLATE
 \thispagestyle{empty}
 \null
 \begin{tikzpicture}[remember picture,overlay]
@@ -627,18 +654,23 @@
 \end{tikzpicture}
 \newpage
 
-% 18 BACK COVER / EXTRA / CREDITS
+% 19 EXTRA IMAGE / ITS OWN PAGE
 \thispagestyle{empty}
 \null
 \begin{tikzpicture}[remember picture,overlay]
-  \node[anchor=north west,inner sep=0] at (current page.north west)
-    {\includegraphics[height=\paperheight]{assets/selection/photo-005.png}};
-  \fill[white,opacity=.86] ([xshift=10mm,yshift=-38mm]current page.north west) rectangle ++(190mm,-78mm);
-  \fill[white,opacity=.90] ([xshift=10mm,yshift=-10mm]current page.north west) rectangle ++(43mm,-17mm);
-  \node[anchor=north west,align=left,text width=38mm] at ([xshift=13mm,yshift=-13mm]current page.north west)
-    {\metafont\fontsize{6.5}{8}\selectfont EXTRA / NOT IN\\CURRENT SELECTION};
+  \node[anchor=center,inner sep=0] at (current page.center)
+    {\includegraphics[width=\paperwidth]{assets/selection/photo-005.png}};
+  \fill[white,opacity=.92] ([xshift=10mm,yshift=-10mm]current page.north west) rectangle ++(48mm,-17mm);
+  \node[anchor=north west,align=left,text width=43mm] at ([xshift=13mm,yshift=-13mm]current page.north west)
+    {\metafont\fontsize{6.5}{8}\selectfont EXTRA IMAGE /\\NOT IN CURRENT SELECTION};
+  \node[anchor=south east] at ([xshift=-10mm,yshift=10mm]current page.south east)
+    {\metafont\fontsize{6.5}{8}\selectfont IMAGE / EXTRA / OPEN POSITION};
 \end{tikzpicture}
-\vspace*{112mm}\hspace*{14mm}
+\newpage
+
+% 20 BACK COVER / CREDITS
+\thispagestyle{empty}
+\vspace*{45mm}\hspace*{14mm}
 \begin{minipage}{179mm}
   \begin{minipage}[t]{112mm}
     {\RaggedRight\displayfont\fontsize{25}{25}\selectfont
@@ -663,7 +695,7 @@
 \end{minipage}
 \newpage
 
-% 19 SUGGESTED LISTENING / FINE PRINT
+% 21 SUGGESTED LISTENING / FINE PRINT
 \thispagestyle{empty}
 \vspace*{10mm}\hspace*{10mm}
 \begin{minipage}{190mm}
