@@ -42,7 +42,7 @@
   \end{tikzpicture}\par}
 
 \newcommand{\folio}[1]{\begin{tikzpicture}[remember picture,overlay]
-\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 17};
+\node[anchor=south east,text=signal,font=\metafont\fontsize{6}{7}\selectfont] at ([xshift=-10mm,yshift=8mm]current page.south east) {#1 / 18};
 \end{tikzpicture}\par}
 
 \newcommand{\statement}[1]{{\RaggedRight\displayfont\color{signal}\fontsize{36}{34}\selectfont\MakeUppercase{#1}\par}}
@@ -129,8 +129,35 @@
 \end{minipage}
 \newpage
 
-% 4 SYSTEM
-\meta{SYSTEM}{PERTURBATION}\folio{04}\sidelegend
+% 4 RATIONALE
+\meta{RATIONALE}{ENTRY 00}\folio{04}\sidelegend
+\vspace*{51mm}\hspace*{21mm}
+\begin{minipage}{168mm}
+  \setlength{\parindent}{0pt}
+  \justifying
+  {\fontsize{18}{23}\selectfont
+    \hangindent=13mm\hangafter=1
+    \textbf{rationale}\enspace \textit{n.}\enspace
+    From what remains: architectures, images, memories, relationships, sounds,
+    and debris. TAKE OVER asks what can begin inside spaces opened by something
+    else. --- Community is not presented as a stable object but as a process.
+    Photography opens to voice; voice opens to sound. Sound opens to another
+    person; another person brings another practice. The work grows through these
+    relations.\par}
+  \vspace{13mm}
+  {\fontsize{14}{19}\selectfont
+    \textbf{Deriv.}\enspace
+    \textit{image-to-voice; voice-to-sound; sound-to-person; person-to-practice;
+    practice-to-relation; relation-to-next.}\par}
+  \vspace{38mm}
+  {\fontsize{12}{16}\selectfont
+    An initial condition looking for consequences. Everything asks to be
+    continued. Enter anywhere. Change what follows.}
+\end{minipage}
+\newpage
+
+% 5 SYSTEM
+\meta{SYSTEM}{PERTURBATION}\folio{05}\sidelegend
 \vspace*{57mm}
 \begin{center}
   {\fontsize{38}{45}\selectfont
@@ -150,7 +177,7 @@
 \newpage
 
 % 5 EXHIBITION
-\meta{EXHIBITION}{SYSTEM OF RELATIONS}\folio{05}\sidelegend
+\meta{EXHIBITION}{SYSTEM OF RELATIONS}\folio{06}\sidelegend
 \vspace*{43mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   {\RaggedRight\displayfont\fontsize{27}{28}\selectfont THE WALL IS THE\\INITIAL CONDITION.}\par
@@ -167,7 +194,7 @@
 \newpage
 
 % 5 PHOTO
-\meta{PHOTOGRAPH}{NODE 01}\folio{06}\sidelegend
+\meta{PHOTOGRAPH}{NODE 01}\folio{07}\sidelegend
 \vspace*{36mm}\hspace*{14mm}
 \begin{minipage}{179mm}
   \photobox[205mm]{KUMIORI / ABANDONED CHURCH / SELECTED SEQUENCE}
@@ -177,7 +204,7 @@
 \newpage
 
 % 6 VOICE
-\meta{VOICE}{NODE 01 / AUDIO}\folio{07}\sidelegend
+\meta{VOICE}{NODE 01 / AUDIO}\folio{08}\sidelegend
 \vspace*{47mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \statement{THE IMAGE\\DOES NOT\\EXPLAIN.}\par
@@ -195,7 +222,7 @@
 \newpage
 
 % 7 MULTIPLEX
-\meta{SYSTEM}{MULTIPLEX}\folio{08}\sidelegend
+\meta{SYSTEM}{MULTIPLEX}\folio{09}\sidelegend
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \sectionnumber{1}\par\vspace{1mm}
@@ -212,7 +239,7 @@
 \newpage
 
 % 8 EMPTY
-\meta{VACANCY}{OPEN NODE}\folio{09}\sidelegend
+\meta{VACANCY}{OPEN NODE}\folio{10}\sidelegend
 \vspace*{54mm}\hspace*{14mm}
 \begin{minipage}{179mm}
   \statement{UNALLOCATED\\IS NOT EMPTY.}\par
@@ -224,7 +251,7 @@
 \newpage
 
 % 9 PHOTO 2
-\meta{PHOTOGRAPH}{NODE 02}\folio{10}\sidelegend
+\meta{PHOTOGRAPH}{NODE 02}\folio{11}\sidelegend
 \vspace*{36mm}\hspace*{14mm}
 \begin{minipage}{180mm}
   \photobox[205mm]{AVE PALM / PROVISIONAL SELECTION}
@@ -234,25 +261,34 @@
 \newpage
 
 % 10 SOUND
-\meta{SOUND}{NODE 03}\folio{11}\sidelegend
+\meta{SOUND}{NODE 03}\folio{12}\sidelegend
+\begin{tikzpicture}[remember picture,overlay]
+  \node[anchor=north west,align=left,text width=38mm,
+        font=\fontsize{8.5}{11}\selectfont]
+    at ([xshift=14mm,yshift=-92mm]current page.north west)
+    {\textbf{ARVO P\"ART}\\[-.5mm]\textit{Ludus}\\[1.5mm]\textit{``game'' in Latin}};
+\end{tikzpicture}
 \vspace*{47mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \bigstatement{LISTEN.}\par
   \vspace{18mm}
   {\fontsize{14}{19}\selectfont
     Sound is location and grounding. Some QR portals carry recordings made at or in relation to the photographed sites; others carry voices or composed material. Kenn-Eerik Kannike develops the sonic trajectory through recordings, listening, and live electronic concert.}
-  \vspace{26mm}
+  \vspace{24mm}
   \begin{center}
-    \begin{tikzpicture}
-      \draw[signal,line width=.7pt] (0,0)--(12,0);
-      \foreach \x/\h in {0/.2,.3/.5,.6/1.2,.9/.6,1.2/1.8,1.5/.7,1.8/1.4,2.1/.4,2.4/2,2.7/.8,3/1.5,3.3/.3,3.6/1.1,3.9/.6,4.2/1.9,4.5/.4,4.8/1.2,5.1/.7,5.4/1.6,5.7/.3,6/1.1,6.3/.8,6.6/1.7,6.9/.5,7.2/1.3,7.5/.4,7.8/1.8,8.1/.7,8.4/1.2,8.7/.3,9/1.6,9.3/.5,9.6/1.1,9.9/.6,10.2/1.9,10.5/.4,10.8/1.3,11.1/.5,11.4/1.5,11.7/.3,12/.8}{\draw[line width=.45pt] (\x,-\h/2)--(\x,\h/2);}
+    \begin{tikzpicture}[x=1cm,y=1cm]
+      \node[anchor=south west,inner sep=0] at (0,0)
+        {\includegraphics[width=12cm,height=1.8cm]{../../fig/listen_waveform_clean.png}};
+      \node[anchor=north,text=signal,font=\metafont\fontsize{7}{9}\selectfont] at (2.05,-.35) {CHIRP};
+      \node[anchor=north,text=signal,font=\metafont\fontsize{7}{9}\selectfont] at (4.85,-.35) {SILENCE};
+      \node[anchor=north east,text=signal,font=\metafont\fontsize{7}{9}\selectfont] at (12,-.35) {SMOOTH CRESCENDO};
     \end{tikzpicture}
   \end{center}
 \end{minipage}
 \newpage
 
 % 11 TRAJECTORY
-\meta{TRAJECTORY}{TIMELINE}\folio{12}\sidelegend
+\meta{TRAJECTORY}{TIMELINE}\folio{13}\sidelegend
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \sectionnumber{2}\par\vspace{1mm}
@@ -270,7 +306,7 @@
 \newpage
 
 % 12 NEEDS
-\meta{NECESSITIES}{CURRENT STATE}\folio{13}\sidelegend
+\meta{NECESSITIES}{CURRENT STATE}\folio{14}\sidelegend
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \statement{CURRENT\\STATE.}\par
@@ -291,7 +327,7 @@
 \newpage
 
 % 13 GRAPH
-\meta{PROPAGATION}{STATE $G_n$}\folio{14}\sidelegend
+\meta{PROPAGATION}{STATE $G_n$}\folio{15}\sidelegend
 \networkbg{22}
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
@@ -313,7 +349,7 @@
 \newpage
 
 % 14 BIO
-\meta{APPLICANT}{SHORT BIO}\folio{15}\sidelegend
+\meta{APPLICANT}{SHORT BIO}\folio{16}\sidelegend
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   \sectionnumber{4}\par\vspace{1mm}
@@ -328,7 +364,7 @@
 \newpage
 
 % 15 YOUR TURN
-\meta{OPEN}{NEXT NODE}\folio{16}\sidelegend
+\meta{OPEN}{NEXT NODE}\folio{17}\sidelegend
 \networkbg{15}
 \vspace*{58mm}
 \begin{center}
@@ -343,7 +379,7 @@
 \newpage
 
 % 16 CREDITS
-\meta{APPLICATION}{CURRENT ALLOCATION}\folio{17}\sidelegend
+\meta{APPLICATION}{CURRENT ALLOCATION}\folio{18}\sidelegend
 \vspace*{45mm}\hspace*{62mm}
 \begin{minipage}{128mm}
   {\RaggedRight\displayfont\fontsize{27}{28}\selectfont IMAGE CREDITS /\\CURRENT ALLOCATION.}\par
@@ -351,14 +387,14 @@
   \renewcommand{\arraystretch}{1.45}
   \setlength{\tabcolsep}{2mm}
   \begin{tabular}{r l@{\hspace{8mm}}r l}
-    01 & KUMIORI           & 08 & AVE [provisional] \\
-    02 & KUMIORI           & 08 & AVE [provisional] \\
-    03 & KUMIORI           & 08 & AVE [provisional] \\
-    04 & KUMIORI           & 08 & AVE [provisional] \\
-    05 & KUMIORI           & 08 & AVE [provisional] \\
-    06 & KUMIORI           & 08 & AVE [provisional] \\
-    07 & AVE [provisional] & 13 & UNALLOCATED       \\
-    14 & UNALLOCATED       & 15 & UNALLOCATED       \\
+    01 & AVE [provisional selection] & 09 & KUMIORI                    \\
+    02 & AVE [provisional selection] & 10 & UNALLOCATED                 \\
+    03 & UNALLOCATED                 & 11 & AVE [provisional selection] \\
+    04 & AVE [provisional selection] & 12 & KUMIORI                    \\
+    05 & KUMIORI                     & 13 & AVE [provisional selection] \\
+    06 & AVE [provisional selection] & 14 & KUMIORI                    \\
+    07 & AVE [provisional selection] & 15 & UNALLOCATED                 \\
+    08 & KUMIORI                     & 16 & KUMIORI                    \\
   \end{tabular}\par
   \vspace{24mm}
   {\fontsize{12}{16}\selectfont The precise installation responds to the physical dimensions and conditions of the Community Gallery. The sketch describes a system of relations, not a hanging plan.}
