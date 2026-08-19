@@ -9,12 +9,14 @@ from .models import Entity, Necessity, Relation
 
 
 NECESSITY_ROWS = (
-    ("need-abstract", "abstract", "in_progress"),
-    ("need-initial-kernel", "initial_kernel", "found"),
-    ("need-material", "material", "collecting"),
-    ("need-photographs", "photographs", "found"),
-    ("need-translation", "translation", "open"),
-    ("need-voices-sound", "voices_sound", "agreed"),
+    ("need-abstract", "abstract", "application", "in_progress"),
+    ("need-initial-kernel", "initial_kernel", "application", "found"),
+    ("need-material", "material", "application", "collecting"),
+    ("need-photographs", "photographs", "application", "found"),
+    ("need-translation", "translation", "application", "open"),
+    ("need-voices-sound", "voices_sound", "application", "agreed"),
+    ("need-application", "application", "application", "to_submit"),
+    ("need-production", "production", "production", "not_yet_activated"),
 )
 
 
@@ -40,7 +42,7 @@ class SessionRegistry:
         return [Relation(**item) for item in self._state["takeover_relations"]]
 
     def list_necessities(self) -> list[Necessity]:
-        return [Necessity(item_id, name, "application", status) for item_id, name, status in NECESSITY_ROWS]
+        return [Necessity(item_id, name, stage, status) for item_id, name, stage, status in NECESSITY_ROWS]
 
     def add_entity(self, entity: Entity) -> Entity:
         if any(item["id"] == entity.id for item in self._state["takeover_entities"]):

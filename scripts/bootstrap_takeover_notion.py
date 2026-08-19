@@ -42,7 +42,7 @@ DATABASES: dict[str, dict[str, Any]] = {
     "places": {"title": "Takeover_Places", "properties": {"Name": {"title": {}}, "Place ID": rich(), "Description": rich(), "Coordinates": rich(), "Status": STATUS, "Metadata JSON": rich()}},
     "relations": {"title": "Takeover_Relations", "properties": {"Name": {"title": {}}, "Relation ID": rich(), "Source ID": rich(), "Source Type": select(("person", "blue"), ("photograph", "purple"), ("audio", "orange"), ("place", "green"), ("timeline_event", "yellow"), ("necessity", "pink")), "Target ID": rich(), "Target Type": select(("person", "blue"), ("photograph", "purple"), ("audio", "orange"), ("place", "green"), ("timeline_event", "yellow"), ("necessity", "pink")), "Relation Type": rich(), "Status": STATUS, "Metadata JSON": rich(), "Created At": date_prop()}},
     "timeline_events": {"title": "Takeover_TimelineEvents", "properties": {"Name": {"title": {}}, "Event ID": rich(), "Event Type": rich(), "Temporal Position": number(), "Event Date": date_prop(), "Status": select(("planned", "gray"), ("active", "green"), ("realised", "blue"), ("changed", "orange"), ("cancelled", "red")), "Visibility": select(("public", "green"), ("private", "gray")), "Metadata JSON": rich()}},
-    "necessities": {"title": "Takeover_Necessities", "properties": {"Name": {"title": {}}, "Necessity ID": rich(), "Status": select(("in_progress", "yellow"), ("found", "green"), ("collecting", "blue"), ("open", "red"), ("agreed", "purple")), "Description": rich(), "Metadata JSON": rich(), "Created At": date_prop()}},
+    "necessities": {"title": "Takeover_Necessities", "properties": {"Name": {"title": {}}, "Necessity ID": rich(), "Status": select(("in_progress", "yellow"), ("found", "green"), ("collecting", "blue"), ("open", "red"), ("agreed", "purple"), ("to_submit", "orange"), ("done", "green"), ("not_yet_activated", "gray")), "Description": rich(), "Metadata JSON": rich(), "Created At": date_prop()}},
     "interactions": {"title": "Takeover_Interactions", "properties": {"Name": {"title": {}}, "Interaction ID": rich(), "Interaction Type": rich(), "Actor ID": rich(), "Target ID": rich(), "Occurred At": date_prop(), "Visibility": select(("public", "green"), ("private", "gray")), "Metadata JSON": rich()}},
 }
 
@@ -131,7 +131,6 @@ def seed_stages(client: Client, manifest: dict[str, Any]) -> None:
 def sync_necessities(client: Client, manifest: dict[str, Any]) -> None:
     """Make the live Necessities data source exactly match the M2 corpus."""
     source = str(manifest["databases"]["necessities"]["data_source_id"])
-    stage_id = str(manifest["stage_pages"]["application"])
     client.data_sources.update(data_source_id=source, properties={"Status": DATABASES["necessities"]["properties"]["Status"]})
     response = client.data_sources.query(data_source_id=source, page_size=100)
     existing = {
@@ -139,11 +138,11 @@ def sync_necessities(client: Client, manifest: dict[str, Any]) -> None:
         for page in response.get("results") or []
     }
     current_ids = {row[0] for row in NECESSITY_ROWS}
-    for item_id, name, status in NECESSITY_ROWS:
+    for item_id, name, stage, status in NECESSITY_ROWS:
         properties = {
             "Name": {"title": text(name)}, "Necessity ID": {"rich_text": text(item_id)},
             "Status": {"select": {"name": status}}, "Description": {"rich_text": []},
-            "Stage": {"relation": [{"id": stage_id}]},
+            "Stage": {"relation": [{"id": str(manifest["stage_pages"][stage])}]},
         }
         page = existing.get(item_id)
         if page:
@@ -155,7 +154,7 @@ def sync_necessities(client: Client, manifest: dict[str, Any]) -> None:
         if item_id and item_id not in current_ids:
             client.pages.update(page_id=page["id"], archived=True)
     manifest["necessities_seeded"] = True
-    manifest["necessities_version"] = "m2.0"
+    manifest["necessities_version"] = "m2.1"
 
 
 def verify(client: Client, manifest: dict[str, Any]) -> list[str]:

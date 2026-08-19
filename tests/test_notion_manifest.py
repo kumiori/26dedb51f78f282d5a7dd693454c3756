@@ -16,10 +16,12 @@ def test_m2_necessities_are_an_exact_structured_corpus() -> None:
     from takeover.registry import NECESSITY_ROWS
 
     assert NECESSITY_ROWS == (
-        ("need-abstract", "abstract", "in_progress"),
-        ("need-initial-kernel", "initial_kernel", "found"),
-        ("need-material", "material", "collecting"),
-        ("need-photographs", "photographs", "found"),
-        ("need-translation", "translation", "open"),
-        ("need-voices-sound", "voices_sound", "agreed"),
+        ("need-abstract", "abstract", "application", "in_progress"),
+        ("need-initial-kernel", "initial_kernel", "application", "found"),
+        ("need-material", "material", "application", "collecting"),
+        ("need-photographs", "photographs", "application", "found"),
+        ("need-translation", "translation", "application", "open"),
+        ("need-voices-sound", "voices_sound", "application", "agreed"),
+        ("need-application", "application", "application", "to_submit"),
+        ("need-production", "production", "production", "not_yet_activated"),
     )

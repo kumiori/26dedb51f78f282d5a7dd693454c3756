@@ -1,0 +1,27 @@
+schema_version: takeover-resources/v2
+status: observed
+dimensions:
+  - allocated_eur
+  - investment_intention
+allocated_resources:
+  currency: EUR
+  observations:
+    - id: allocation-day-minus-2
+      date: 2026-08-17
+      timing: D−2
+      amount_eur: 0
+      label: "inception: the myth of the cave"
+    - id: allocation-day-minus-1
+      date: 2026-08-18
+      timing: D−1
+      amount_eur: 0
+    - id: allocation-day-0
+      date: 2026-08-19
+      timing: D0
+      amount_eur: 0
+investment_intentions:
+  - id: intention-2026-08-18
+    date: 2026-08-18
+    timing: D−1
+    amount_eur: 0
+    label: intention

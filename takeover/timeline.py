@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from datetime import date, datetime
 from typing import Any
 
 import plotly.graph_objects as go
@@ -74,3 +75,53 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
         hoverlabel={"font": {"family": "Courier New, monospace"}},
     )
     return figure
+
+
+def build_time_mapping_figure(payload: dict[str, Any]) -> go.Figure:
+    """Tentatively map calendar-linear time u onto qualitative time q=f(u)."""
+    rows = build_time_mapping_rows(payload)
+
+    figure = go.Figure()
+    figure.add_trace(go.Scatter(x=[0, 1], y=[0, 1], mode="lines", name="IDENTITY · q=u", line={"color": "rgba(17,17,17,.25)", "dash": "dot"}))
+    figure.add_trace(go.Scatter(
+        x=[row["linear"] for row in rows], y=[row["nonlinear"] for row in rows],
+        mode="lines+markers", name="TENTATIVE MAP · q=f(u)",
+        line={"color": "#315f78", "width": 2}, marker={"color": "#315f78", "size": 9},
+        customdata=[[row["title"], row["residual"]] for row in rows],
+        hovertemplate="%{customdata[0]}<br>u=%{x:.3f}<br>q=%{y:.3f}<br>Δ=%{customdata[1]:+.3f}<extra></extra>",
+    ))
+    figure.update_layout(
+        height=430, margin={"l": 65, "r": 35, "t": 70, "b": 60},
+        paper_bgcolor="#f5f2ed", plot_bgcolor="#f5f2ed",
+        title={"text": "LINEAR ↔ NONLINEAR TIME", "x": 0, "font": {"family": "Courier New, monospace", "size": 18}},
+        xaxis={"title": "u = (date − start) / horizon", "range": [-.03, 1.03], "showgrid": True, "gridcolor": "rgba(17,17,17,.08)"},
+        yaxis={"title": "q = qualitative position", "range": [-.03, 1.03], "showgrid": True, "gridcolor": "rgba(17,17,17,.08)"},
+        legend={"orientation": "h", "y": 1.12, "x": 0}, font={"family": "Courier New, monospace", "color": "#111"},
+    )
+    return figure
+
+
+def build_time_mapping_rows(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Return the dated event dataset used by the tentative time map."""
+    plan = payload["plan"]
+    start = date.fromisoformat(str(plan["start_date"]))
+    end = start.fromordinal(start.toordinal() + int(plan.get("horizon_days") or 365))
+    duration = max(1, (end - start).days)
+    rows = []
+    for event in payload["primitives"]:
+        if not event.get("date"):
+            continue
+        event_date = datetime.fromisoformat(str(event["date"])).date()
+        linear = (event_date - start).days / duration
+        nonlinear = float(event.get("time_parameter") or event.get("temporal_position") or 0)
+        rows.append({
+            "date": str(event["date"]),
+            "title": str(event.get("title") or ""),
+            "type": str(event.get("type") or "event"),
+            "linear": linear,
+            "nonlinear": nonlinear,
+            "residual": nonlinear - linear,
+            "visibility": str(event.get("visibility") or ""),
+        })
+    rows.sort(key=lambda item: item["linear"])
+    return rows

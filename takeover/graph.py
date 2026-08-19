@@ -19,7 +19,7 @@ def build_graph_html(
     invitation: str = "Bring your voice, your image, your practice.",
     nodes_label: str = "NODES",
     connections_label: str = "CONNECTIONS",
-    ratio_label: str = "CONNECTIONS/NODE",
+    ratio_label: str = "(1+CONNECTIONS)/NODES",
 ) -> str:
     width, height = 920, 590
     centre = (width / 2, height / 2)
@@ -48,7 +48,7 @@ def build_graph_html(
         )
     count = len(entities)
     connection_count = len(lines)
-    ratio = f"{connection_count / count:.3f}" if count else f"{secrets.randbelow(9_000_000_000) + 1_000_000_000:.11E}"
+    ratio = f"{(1 + connection_count) / count:.3f}" if count else f"{secrets.randbelow(9_000_000_000) + 1_000_000_000:.11E}"
     payload = json.dumps({"nodes": count, "connections": len(lines)})
     ghost_points = [(112, 112), (215, 78), (325, 150), (450, 76), (565, 128), (710, 82), (824, 165), (785, 292), (842, 420), (710, 490), (590, 445), (476, 520), (345, 460), (205, 515), (96, 405), (158, 295)]
     ghost_edges = [(0, 2), (1, 2), (2, 3), (2, 5), (3, 4), (4, 6), (5, 7), (6, 7), (7, 8), (7, 10), (8, 9), (9, 10), (9, 11), (10, 12), (11, 13), (12, 13), (12, 14), (13, 15), (14, 15), (0, 15), (2, 15), (4, 10)]
@@ -63,14 +63,14 @@ def build_graph_html(
       .relation {{ stroke:#111; stroke-width:2.4; opacity:.76; }}
       .ghost {{ fill:#aaa6a0; opacity:.34; }}
       .latent {{ stroke:#aaa6a0; stroke-width:.55; opacity:.22; }}
-      .hub {{ position:absolute; left:50%; top:43%; transform:translate(-50%,-50%); display:grid; place-items:center;
+      .hub {{ position:absolute; left:50%; top:56%; transform:translate(-50%,-50%); display:grid; place-items:center;
         width:96px; height:96px; border-radius:50%; background:#111; color:#fff; font-size:38px; text-decoration:none; }}
-      .hub:hover,.hub:focus {{ background:#123dff; outline:0; }}
-      .hub-label {{ position:absolute; left:50%; top:calc(43% + 58px); transform:translateX(-50%); font-size:12px; letter-spacing:.11em; white-space:nowrap; }}
-      .you {{ position:absolute; left:50%; top:76%; transform:translate(-50%,-50%); width:190px; text-align:center; }}
+      .hub:hover,.hub:focus {{ background:#777168; outline:0; }}
+      .hub-label {{ position:absolute; left:50%; top:calc(56% + 58px); transform:translateX(-50%); font-size:10px; letter-spacing:.11em; white-space:nowrap; }}
+      .you {{ position:absolute; left:50%; top:85%; transform:translate(-50%,-50%); width:190px; text-align:center; }}
       .you-orb {{ display:grid; place-items:center; width:76px; height:76px; margin:auto; border:1px solid #8d8983; border-radius:50%; background:rgba(255,255,255,.25); font-size:30px; color:#595652; }}
-      .you strong {{ display:block; margin-top:10px; font-size:12px; letter-spacing:.13em; }}
-      .you small {{ display:block; margin-top:5px; line-height:1.4; color:#68635e; }}
+      .you strong {{ display:block; margin-top:8px; font-size:10px; letter-spacing:.13em; }}
+      .you small {{ display:block; margin-top:4px; line-height:1.35; color:#68635e; font-size:9px; }}
       .empty {{ position:absolute; left:7%; bottom:8%; color:#8b8781; font-size:10px; letter-spacing:.12em; }}
       .node {{ position:absolute; transform:translate(-50%,-50%); width:132px; color:#111; text-decoration:none; text-align:center;
         animation:wobble 6s ease-in-out infinite alternate; animation-delay:var(--delay); }}
