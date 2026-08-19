@@ -41,6 +41,7 @@ def test_rc0_graph_has_depth_structured_social_seed() -> None:
     html = build_graph_html(entities, relations)
 
     assert [entity.title for entity in entities[:4]] == ["KUMIORI", "Ave", "Mai-Brit", "Kenn-Eerik"]
+    assert entities[3].id == "kenneerik"
     assert [entity.status for entity in entities] == [
         "active", "active", "active", "active",
         "latent_known", "latent_private", "unknown", "unknown",

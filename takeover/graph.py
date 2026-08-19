@@ -53,7 +53,7 @@ def build_graph_html(
         "kumiori": (.12, .48),
         "ave": (.43, .16),
         "mai_brit": (.68, .50),
-        "kenn_eerik": (.28, .78),
+        "kenneerik": (.28, .78),
         "graziano": (.83, .16),
         "michela": (.10, .20),
         "latent_01": (.86, .78),

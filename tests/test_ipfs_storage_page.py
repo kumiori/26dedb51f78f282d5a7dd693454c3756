@@ -16,6 +16,8 @@ def test_storage_page_lists_bucket_accounting(monkeypatch) -> None:
 
     assert not app.exception
     assert [title.value for title in app.title] == ["DROP / TEST"]
-    assert {metric.label for metric in app.metric} == {"OBJECTS", "WEIGHT"}
+    assert {metric.label for metric in app.metric} == {"OBJECTS", "BUCKET WEIGHT"}
     assert next(metric.value for metric in app.metric if metric.label == "OBJECTS") == "1"
-    assert [uploader.label for uploader in app.get("file_uploader")] == ["Drop something"]
+    assert not app.text_input
+    assert not app.get("file_uploader")
+    assert any("OPEN A PARTICIPANT DROP LINK" in item.value for item in app.info)

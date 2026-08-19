@@ -27,7 +27,7 @@ SEED_ENTITIES = (
     Entity("kumiori", "person", "KUMIORI", "Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0}),
     Entity("ave", "person", "Ave", "Person • Alien / artist / application", metadata={"depth": 0}),
     Entity("mai_brit", "person", "Mai-Brit", "Person • Alien / voice / application", metadata={"depth": 0}),
-    Entity("kenn_eerik", "person", "Kenn-Eerik", "Person • Alien / sound / application", metadata={"depth": 0}),
+    Entity("kenneerik", "person", "Kenn-Eerik", "Person • Alien / sound / application", metadata={"depth": 0}),
 )
 PRESEED_ENTITIES = (
     Entity("graziano", "person", "Graziano", "Person • Alien / potential / application", status="latent_known", metadata={"depth": 1}),
@@ -38,8 +38,8 @@ PRESEED_ENTITIES = (
 SEED_RELATIONS = (
     Relation("seed-kumiori-ave", "kumiori", "ave", "collaborates_with"),
     Relation("seed-kumiori-mai-brit", "kumiori", "mai_brit", "collaborates_with"),
-    Relation("seed-kumiori-kenn-eerik", "kumiori", "kenn_eerik", "collaborates_with"),
-    Relation("seed-ave-kenn-eerik", "ave", "kenn_eerik", "collaborates_with"),
+    Relation("seed-kumiori-kenneerik", "kumiori", "kenneerik", "collaborates_with"),
+    Relation("seed-ave-kenneerik", "ave", "kenneerik", "collaborates_with"),
 )
 
 
