@@ -17,7 +17,6 @@ CSS = r"""
 .event-log-row time { color:#48443f; font-size:.57rem; font-weight:500; letter-spacing:.06em; }
 .event-log-row strong { margin-top:.18rem; color:#111; font-size:.63rem; font-weight:500; letter-spacing:.05em; }
 .event-log-row span { margin-top:.14rem; color:#3f3b37; font-size:.59rem; overflow-wrap:anywhere; }
-.sidebar-test-link { margin:2rem 0 .35rem; padding-top:.8rem; border-top:1px solid rgba(17,17,17,.35); color:#48443f; font-family:'DM Mono',monospace; font-size:.58rem; letter-spacing:.12em; }
 [data-testid="stSidebar"] [data-testid="stPageLink"] a { border:1px solid #111; border-radius:0; font-family:'DM Mono',monospace; font-size:.68rem; letter-spacing:.1em; }
 .sidebar-analysis-title,.sidebar-call>small { display:block; margin:2rem 0 .8rem; padding-top:.8rem; border-top:1px solid rgba(17,17,17,.35); color:#111; font-family:'DM Mono',monospace; font-size:.68rem; font-weight:500; letter-spacing:.13em; }
 .sidebar-analysis-subtitle { margin:1.2rem 0 .45rem; color:#111; font-family:'DM Mono',monospace; font-size:.61rem; letter-spacing:.1em; }

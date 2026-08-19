@@ -181,7 +181,8 @@ def main() -> None:
     parser.add_argument("--manifest", default=str(DEFAULT_MANIFEST))
     args = parser.parse_args()
     if args.command == "plan":
-        for key, spec in DATABASES.items(): print(f"{key}: {spec['title']}")
+        for key, spec in DATABASES.items():
+            print(f"{key}: {spec['title']}")
         return
     token = os.getenv("NOTION_TOKEN", "").strip()
     if not token:

@@ -31,7 +31,8 @@ LISTENING = ROOT / "config" / "takeover_listening.yaml"
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
     language = "en"
-t = lambda key: translate(key, language)
+def t(key: str) -> str:
+    return translate(key, language)
 
 st.set_page_config(page_title=t("project_name"), page_icon="+", layout="wide", initial_sidebar_state="expanded")
 st.markdown(CSS, unsafe_allow_html=True)
@@ -271,7 +272,7 @@ def render_sidebar_time_mapping() -> None:
         {"ANCHOR": str(anchor[0]), "q": float(anchor[1])}
         for anchor in plan.get("qualitative_anchors") or []
     ]
-    st.markdown(f'<div class="sidebar-analysis-subtitle">QUALITATIVE ANCHORS</div>', unsafe_allow_html=True)
+    st.markdown('<div class="sidebar-analysis-subtitle">QUALITATIVE ANCHORS</div>', unsafe_allow_html=True)
     st.dataframe(anchor_rows, use_container_width=True, hide_index=True)
     st.markdown(f'<div class="sidebar-analysis-subtitle">{t("trajectory_dataset")}</div>', unsafe_allow_html=True)
     st.dataframe([
@@ -325,8 +326,6 @@ def render_sidebar(current: str, mode: str) -> None:
             detail = html.escape(str(event.get("detail") or ""))
             suffix = " · ".join(value for value in (target, detail) if value)
             st.markdown(f'<div class="event-log-row"><time>{occurred} UTC</time><strong>{html.escape(label)}</strong>{f"<span>{suffix}</span>" if suffix else ""}</div>', unsafe_allow_html=True)
-        st.markdown('<div class="sidebar-test-link">INTERACTION DIAGNOSTICS</div>', unsafe_allow_html=True)
-        st.page_link("pages/99_Dialog_Test.py", label="DIALOG TESTS", icon=":material/experiment:")
 
 
 def render_network(repo, mode: str) -> None:

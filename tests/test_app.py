@@ -121,8 +121,6 @@ def test_sidebar_has_a_visible_navigation_surface(monkeypatch) -> None:
     sidebar_corpus = " ".join(block.value for block in app.sidebar.markdown)
     assert "EVENT LOG" in sidebar_corpus
     assert "SESSION STARTED" in sidebar_corpus
-    assert "INTERACTION DIAGNOSTICS" in sidebar_corpus
-    assert any(link.label == "DIALOG TESTS" for link in app.sidebar.get("page_link"))
 
     next(button for button in app.sidebar.button if button.label == "VOICES").click().run(timeout=20)
     sidebar_corpus = " ".join(block.value for block in app.sidebar.markdown)

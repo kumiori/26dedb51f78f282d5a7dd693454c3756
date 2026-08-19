@@ -5,14 +5,14 @@
   "short_id_rule": "QR-<two-digit index>-<last four characters of final cropped asset MD5>",
   "black_margin_px": 24,
   "assets": {
-    "01": {"id": "QR-01-450d", "short_hash": "450d", "md5": "adb1333129c7aee551c24bb619dd450d", "file": "assets/qr_01_450d.png"},
-    "02": {"id": "QR-02-4902", "short_hash": "4902", "md5": "fa4788a571486046f939a1379eaf4902", "file": "assets/qr_02_4902.png"},
-    "03": {"id": "QR-03-6fb1", "short_hash": "6fb1", "md5": "f2060048092c1af5bc17fc3b08f76fb1", "file": "assets/qr_03_6fb1.png"},
-    "04": {"id": "QR-04-de54", "short_hash": "de54", "md5": "a5ab61bd6393c296cb5464dff2b2de54", "file": "assets/qr_04_de54.png"},
-    "05": {"id": "QR-05-2270", "short_hash": "2270", "md5": "dd0d5dc525ca37682dab546740982270", "file": "assets/qr_05_2270.png"},
-    "06": {"id": "QR-06-3863", "short_hash": "3863", "md5": "b519989e1ef3a98b6ecc992c3c283863", "file": "assets/qr_06_3863.png"},
-    "07": {"id": "QR-07-1751", "short_hash": "1751", "md5": "3abbc98809a7d6e6c4daed39cfb61751", "file": "assets/qr_07_1751.png"},
-    "08": {"id": "QR-08-3fc7", "short_hash": "3fc7", "md5": "1bd87edfd45fdda6920430e6e3213fc7", "file": "assets/qr_08_3fc7.png"},
-    "09": {"id": "QR-09-fadc", "short_hash": "fadc", "md5": "29aeb8f9ad55407e430cc579d72bfadc", "file": "assets/qr_09_fadc.png"}
+    "01": {"id": "QR-01-450d", "short_hash": "450d", "md5": "adb1333129c7aee551c24bb619dd450d", "file": "../../text/application/assets/qr_progression/qr_01_450d.png"},
+    "02": {"id": "QR-02-4902", "short_hash": "4902", "md5": "fa4788a571486046f939a1379eaf4902", "file": "../../text/application/assets/qr_progression/qr_02_4902.png"},
+    "03": {"id": "QR-03-6fb1", "short_hash": "6fb1", "md5": "f2060048092c1af5bc17fc3b08f76fb1", "file": "../../text/application/assets/qr_progression/qr_03_6fb1.png"},
+    "04": {"id": "QR-04-de54", "short_hash": "de54", "md5": "a5ab61bd6393c296cb5464dff2b2de54", "file": "../../text/application/assets/qr_progression/qr_04_de54.png"},
+    "05": {"id": "QR-05-2270", "short_hash": "2270", "md5": "dd0d5dc525ca37682dab546740982270", "file": "../../text/application/assets/qr_progression/qr_05_2270.png"},
+    "06": {"id": "QR-06-3863", "short_hash": "3863", "md5": "b519989e1ef3a98b6ecc992c3c283863", "file": "../../text/application/assets/qr_progression/qr_06_3863.png"},
+    "07": {"id": "QR-07-1751", "short_hash": "1751", "md5": "3abbc98809a7d6e6c4daed39cfb61751", "file": "../../text/application/assets/qr_progression/qr_07_1751.png"},
+    "08": {"id": "QR-08-3fc7", "short_hash": "3fc7", "md5": "1bd87edfd45fdda6920430e6e3213fc7", "file": "../../text/application/assets/qr_progression/qr_08_3fc7.png"},
+    "09": {"id": "QR-09-fadc", "short_hash": "fadc", "md5": "29aeb8f9ad55407e430cc579d72bfadc", "file": "../../text/application/assets/qr_progression/qr_09_fadc.png"}
   }
 }

@@ -1,7 +1,0 @@
-streamlit==1.55.0
-boto3>=1.40,<2
-PyYAML==6.0.3
-notion-client==3.0.0
-plotly>=6.0,<7
-pytest>=8.0,<9
-streamlit-gtag @ git+https://github.com/kumiori/streamlit-gtag.git@7a04ab228f8cb7edac23d1534e7ed8a095a53299
