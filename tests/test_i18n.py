@@ -1,4 +1,4 @@
-from takeover.i18n import UTTERANCES, language_status_metrics, record_translation_proposal
+from takeover.i18n import LANGUAGES, UTTERANCES, language_status_metrics, record_translation_proposal
 
 
 def test_language_status_metrics_derive_from_the_registered_corpus() -> None:
@@ -8,8 +8,9 @@ def test_language_status_metrics_derive_from_the_registered_corpus() -> None:
     assert sum(metrics["en"].values()) == total
     assert metrics["en"]["CANONICAL"] == total
     assert metrics["et"]["PROVISIONAL"] == total
-    assert metrics["ru"]["PROVISIONAL"] == total
-    assert metrics["fr"]["UNTRANSLATED"] == total
+    assert metrics["fi"]["UNTRANSLATED"] == total
+    assert metrics["sv"]["UNTRANSLATED"] == total
+    assert tuple(metrics) == tuple(LANGUAGES) == ("en", "et", "fi", "sv")
 
 
 def test_translation_proposals_are_review_only_session_state() -> None:

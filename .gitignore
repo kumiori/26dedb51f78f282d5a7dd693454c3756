@@ -26,6 +26,9 @@ dist/
 **/*.log
 **/*.out
 **/*.synctex.gz
+**/*.fdb_latexmk
+**/*.fls
+**/*.xdv
 text/application/*.pdf
 
 # Rendered QA contact sheets and page previews

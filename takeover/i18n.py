@@ -7,13 +7,9 @@ from dataclasses import dataclass, field
 
 LANGUAGES = {
     "en": "English",
-    "fr": "Français",
-    "ru": "Русский",
-    "it": "Italiano",
     "et": "Eesti",
-    "es": "Español",
+    "fi": "Suomi",
     "sv": "Svenska",
-    "zh": "中文",
 }
 VOICE_LANGUAGES = tuple(LANGUAGES)
 

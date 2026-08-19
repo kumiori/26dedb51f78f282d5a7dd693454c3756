@@ -180,13 +180,14 @@ def test_voices_exposes_weighted_corpus(monkeypatch) -> None:
     assert "Bring your voice, your image, your practice." in corpus
     assert "EN · CANONICAL" in corpus
     assert "ET · PROVISIONAL" in corpus
-    assert "RU · PROVISIONAL" in corpus
-    assert "FR · UNTRANSLATED" in corpus and "IT · UNTRANSLATED" in corpus
+    assert "FI · UNTRANSLATED" in corpus and "SV · UNTRANSLATED" in corpus
     assert "IMPROVE THIS TRANSLATION" in corpus
     assert {
-        "EN · English", "FR · Français", "RU · Русский", "IT · Italiano",
-        "ET · Eesti", "ES · Español", "SV · Svenska", "ZH · 中文",
+        "EN · English", "ET · Eesti", "FI · Suomi", "SV · Svenska",
     } <= {button.label for button in app.main.button}
+    assert not {
+        "FR · Français", "RU · Русский", "IT · Italiano", "ES · Español", "ZH · 中文",
+    } & {button.label for button in app.main.button}
     assert "RECORD YOUR VOICE" in corpus
     assert "VOICES STATISTICS" in corpus
     assert "RECORDINGS COMPLETE" in corpus
@@ -203,12 +204,12 @@ def test_voices_exposes_weighted_corpus(monkeypatch) -> None:
 
     assert app.multiselect[0].label == "WHAT LANGUAGES DO YOU WANT TO READ?"
     assert app.multiselect[0].options == [
-        language_term(code) for code in ("en", "fr", "ru", "it", "et", "es", "sv", "zh")
+        language_term(code) for code in ("en", "et", "fi", "sv")
     ]
 
-    next(button for button in app.main.button if button.label == "RU · Русский").click().run(timeout=20)
+    next(button for button in app.main.button if button.label == "ET · Eesti").click().run(timeout=20)
     assert not app.exception
-    assert any("ГОЛОСА" in block.value for block in app.markdown)
+    assert any("HÄÄLED" in block.value for block in app.markdown)
 
 
 def test_translation_proposal_is_session_local_and_does_not_overwrite_corpus(monkeypatch) -> None:
