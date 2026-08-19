@@ -1,5 +1,7 @@
 # TAKE OVER · Milestone 2.0
 
+TAKEOVER • Fotografiska • 2026
+
 A sparse, multilingual operating surface for a growing multiplex community.
 
 ## Run locally
