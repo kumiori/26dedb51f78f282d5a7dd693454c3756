@@ -10,7 +10,7 @@ name = "fotografiska-takeover"
 version = "0.1.0"
 description = "A Streamlit interface for the TAKE OVER community network."
 readme = "README.md"
-requires-python = ">=3.11"
+requires-python = ">=3.11,<4"
 dependencies = [
     "boto3>=1.40,<2",
     "notion-client==3.0.0",
