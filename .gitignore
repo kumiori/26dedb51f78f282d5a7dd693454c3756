@@ -34,4 +34,4 @@ text/application/*.pdf
 # Rendered QA contact sheets and page previews
 tmp/
 
-.streamlit/secrets.toml
+.streamlit/secrets*.toml

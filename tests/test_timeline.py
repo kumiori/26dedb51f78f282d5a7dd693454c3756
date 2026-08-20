@@ -1,6 +1,6 @@
 from pathlib import Path
 
-from takeover.timeline import build_time_mapping_figure, build_time_mapping_rows, build_timeline_figure, load_trajectory
+from takeover.timeline import build_histropedia_html, build_time_mapping_figure, build_time_mapping_rows, build_timeline_figure, histropedia_articles, load_trajectory
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -30,3 +30,14 @@ def test_time_mapping_dataset_exposes_source_and_derived_values() -> None:
     assert len(rows) == len(payload["primitives"])
     assert {"date", "title", "type", "linear", "nonlinear", "residual", "visibility"} <= rows[0].keys()
     assert all(row["residual"] == row["nonlinear"] - row["linear"] for row in rows)
+
+
+def test_histropedia_uses_every_dated_yaml_primitive() -> None:
+    payload = load_trajectory(ROOT / "config" / "takeover_trajectory.yaml")
+    articles = histropedia_articles(payload)
+    assert len(articles) == len(payload["primitives"])
+    assert {article["id"] for article in articles} == {event["id"] for event in payload["primitives"]}
+    assert all({"year", "month", "day"} == set(article["from"]) for article in articles)
+    rendered = build_histropedia_html(payload, "window.Histropedia={Timeline:function(){this.load=()=>{}}}")
+    assert 'id="histropedia-timeline"' in rendered
+    assert "timeline.load(articles)" in rendered

@@ -3,18 +3,23 @@ requires = ["setuptools>=68"]
 build-backend = "setuptools.build_meta"
 
 [tool.setuptools]
-packages = ["takeover"]
+package-dir = {"" = "src"}
+include-package-data = false
 
-[tool.poetry]
-package-mode = false
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["takeover_engine*", "takeover_adapters*", "takeover_fotografiska*"]
 
 [project]
-name = "fotografiska-takeover"
+name = "takeover-engine"
 version = "0.1.0"
-description = "A Streamlit interface for the TAKE OVER community network."
+description = "Typed domain engine for registry overlays, events, contributions, and neutral projections."
 readme = "README.md"
 requires-python = ">=3.11,<4"
-dependencies = [
+dependencies = []
+
+[project.optional-dependencies]
+app = [
     "boto3>=1.40,<2",
     "notion-client==3.0.0",
     "plotly>=6.0,<7",
@@ -22,11 +27,16 @@ dependencies = [
     "streamlit==1.55.0",
     "streamlit-gtag @ git+https://github.com/kumiori/streamlit-gtag.git@7a04ab228f8cb7edac23d1534e7ed8a095a53299",
 ]
-
-[project.optional-dependencies]
 dev = ["pytest>=8.0,<9"]
 
 [tool.pytest.ini_options]
 addopts = "-ra"
-pythonpath = ["."]
+pythonpath = ["src", "."]
 testpaths = ["tests"]
+
+[tool.ruff]
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F"]
+ignore = ["E501"]

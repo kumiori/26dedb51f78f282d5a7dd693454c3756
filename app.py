@@ -8,6 +8,7 @@ import re
 import html
 
 import streamlit as st
+import streamlit.components.v1 as components
 
 from takeover.analytics import emit_google_event, normalise_activation
 from takeover.call import load_call
@@ -17,9 +18,9 @@ from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, lang
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
 from takeover.registry import SessionRegistry, with_rc0_seeds
-from takeover.resources import build_resources_figure, load_resources
+from takeover.resources import build_combined_resources_figure, load_resources
 from takeover.style import CSS
-from takeover.timeline import build_time_mapping_figure, build_time_mapping_rows, build_timeline_figure, load_trajectory
+from takeover.timeline import build_histropedia_html, build_time_mapping_figure, build_time_mapping_rows, load_trajectory
 
 
 ROOT = Path(__file__).resolve().parent
@@ -27,6 +28,7 @@ TRAJECTORY = ROOT / "config" / "takeover_trajectory.yaml"
 RESOURCES = ROOT / "config" / "takeover_resources.yaml"
 CALL = ROOT / "config" / "takeover_call.yaml"
 LISTENING = ROOT / "config" / "takeover_listening.yaml"
+HISTROPEDIA = ROOT / "assets" / "vendor" / "histropedia.umd.min.js"
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -83,6 +85,32 @@ def _analytics_measurement_id() -> str:
     return os.getenv("TAKEOVER_GA_MEASUREMENT_ID", "").strip() or _secret("TAKEOVER_GA_MEASUREMENT_ID")
 
 
+@st.cache_data(ttl=60, show_spinner=False)
+def _bucket_objects() -> tuple[list[dict], str]:
+    """Read Filebase accounting metadata without mutating the bucket."""
+    if not _secrets_available():
+        return [], "STORAGE NOT CONFIGURED"
+    try:
+        import boto3
+        from botocore.config import Config
+        from botocore.exceptions import BotoCoreError, ClientError
+
+        cfg = st.secrets["filebase"]
+        signature = "s3v4" if cfg.get("signature_version", "v4") == "v4" else cfg["signature_version"]
+        client = boto3.client(
+            "s3", endpoint_url=cfg["endpoint"],
+            aws_access_key_id=cfg["access_key"], aws_secret_access_key=cfg["secret_key"],
+            region_name=cfg.get("region", "auto"),
+            config=Config(signature_version=signature, connect_timeout=2, read_timeout=2, retries={"max_attempts": 1}),
+        )
+        response = client.list_objects_v2(Bucket=cfg["bucket"])
+        return list(response.get("Contents", [])), ""
+    except (KeyError, TypeError):
+        return [], "STORAGE NOT CONFIGURED"
+    except (BotoCoreError, ClientError, OSError) as exc:
+        return [], f"BUCKET UNAVAILABLE · {type(exc).__name__}"
+
+
 measurement_id = _analytics_measurement_id()
 if session_event_new:
     emit_google_event(
@@ -108,7 +136,7 @@ if activation_event_new:
 @st.cache_resource
 def _notion_registry(token: str):
     from takeover.notion import NotionRegistry
-    return NotionRegistry(token)
+    return NotionRegistry(token, ROOT / "config" / "takeover_notion.json")
 
 
 def registry():
@@ -289,6 +317,43 @@ def render_sidebar_time_mapping() -> None:
     ], use_container_width=True, hide_index=True)
 
 
+def render_sidebar_resource_datasets() -> None:
+    trajectory = load_trajectory(TRAJECTORY)
+    resource_plan = load_resources(RESOURCES)
+    trajectory_rows = [
+        {
+            "id": item.get("id"),
+            "date": item.get("date"),
+            "type": item.get("type"),
+            "title": item.get("title"),
+            "q": item.get("time_parameter"),
+        }
+        for item in sorted(
+            trajectory["primitives"],
+            key=lambda value: float(value.get("time_parameter", 0)),
+        )
+    ]
+    st.markdown('<div class="sidebar-analysis-title">VOLUME SCALING</div>', unsafe_allow_html=True)
+    st.number_input(
+        "SCALING FACTOR · s",
+        min_value=0.01,
+        max_value=10.0,
+        value=1.0,
+        step=0.1,
+        format="%.2f",
+        key="resource-volume-scale",
+        help="V̂ₛ(t) = s · V(t) / V(now)",
+    )
+    st.caption("V̂ₛ(t) = s · V(t) / V(now)")
+    with st.expander(t("datasets"), expanded=False):
+        st.markdown(f'<div class="sidebar-analysis-subtitle">{t("allocated_dataset")}</div>', unsafe_allow_html=True)
+        st.dataframe(resource_plan["allocated_resources"]["observations"], width="stretch", hide_index=True)
+        st.markdown(f'<div class="sidebar-analysis-subtitle">{t("intentions_dataset")}</div>', unsafe_allow_html=True)
+        st.dataframe(resource_plan["investment_intentions"], width="stretch", hide_index=True)
+        st.markdown(f'<div class="sidebar-analysis-subtitle">{t("trajectory_dataset")}</div>', unsafe_allow_html=True)
+        st.dataframe(trajectory_rows, width="stretch", hide_index=True)
+
+
 def render_sidebar(current: str, mode: str) -> None:
     with st.sidebar:
         st.title(t("project_name"))
@@ -315,6 +380,8 @@ def render_sidebar(current: str, mode: str) -> None:
             render_sidebar_call_information()
         elif current == "timeline":
             render_sidebar_time_mapping()
+        elif current == "resources":
+            render_sidebar_resource_datasets()
         elif current == "voices":
             render_sidebar_voice_statistics()
         st.markdown(f'<div class="event-log-title">{t("event_log")}</div>', unsafe_allow_html=True)
@@ -469,8 +536,12 @@ def render_timeline() -> None:
     st.markdown(f'<div class="timeline-phase">{t("phase")}: {t("application")}</div>', unsafe_allow_html=True)
     payload = load_trajectory(TRAJECTORY)
     st.caption(t("timeline_proposition"))
-    st.plotly_chart(build_timeline_figure(payload), use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
-    st.caption(t("timeline_source"))
+    components.html(
+        build_histropedia_html(payload, HISTROPEDIA.read_text(encoding="utf-8")),
+        height=650,
+        scrolling=False,
+    )
+    st.caption(f'HISTROPEDIAJS 1.5.0 · {t("timeline_source")}')
 
 
 def render_necessities(repo) -> None:
@@ -498,18 +569,24 @@ def render_resources() -> None:
     st.markdown(f'<div class="section-head">{t("resources")} · {t("application")}</div>', unsafe_allow_html=True)
     st.write(t("resources_intro"))
     st.caption(t("observed_intention"))
-    st.plotly_chart(build_resources_figure(trajectory, resource_plan), use_container_width=True, config={"displayModeBar": False, "scrollZoom": False})
-    st.markdown(f'<div class="analysis-head">{t("datasets")}</div>', unsafe_allow_html=True)
-    st.markdown(f'<div class="dataset-label">{t("allocated_dataset")}</div>', unsafe_allow_html=True)
-    st.dataframe(resource_plan["allocated_resources"]["observations"], use_container_width=True, hide_index=True)
-    st.markdown(f'<div class="dataset-label">{t("intentions_dataset")}</div>', unsafe_allow_html=True)
-    st.dataframe(resource_plan["investment_intentions"], use_container_width=True, hide_index=True)
-    trajectory_rows = [
-        {"id": item.get("id"), "date": item.get("date"), "type": item.get("type"), "title": item.get("title"), "q": item.get("time_parameter")}
-        for item in sorted(trajectory["primitives"], key=lambda value: float(value.get("time_parameter", 0)))
-    ]
-    st.markdown(f'<div class="dataset-label">{t("trajectory_dataset")}</div>', unsafe_allow_html=True)
-    st.dataframe(trajectory_rows, use_container_width=True, hide_index=True)
+    bucket_objects, bucket_error = _bucket_objects()
+    total_bytes = sum(int(item.get("Size", 0)) for item in bucket_objects)
+    allocated_metric, volume_metric, files_metric = st.columns(3)
+    allocated_metric.metric("BUCKET OF DOUGH", "€0")
+    volume_metric.metric("BUCKET OF GOLD", f"{total_bytes / 1024 / 1024:.2f} MB" if total_bytes else "0 B")
+    files_metric.metric("TOTAL FILES", len(bucket_objects))
+    if bucket_error:
+        st.caption(bucket_error)
+    volume_scale = float(st.session_state.get("resource-volume-scale", 1.0))
+    st.caption(f"SHARED SCALE · ALLOCATED EUR = 0 · V̂ₛ(t) = {volume_scale:g} · V(t) / V(now) · INTENTION HAS NO VALUE")
+    st.plotly_chart(
+        build_combined_resources_figure(
+            trajectory, resource_plan, bucket_objects, volume_scale=volume_scale
+        ),
+        width="stretch",
+        theme=None,
+        config={"displayModeBar": False, "scrollZoom": False},
+    )
 
 
 def set_language(language: str) -> None:

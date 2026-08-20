@@ -1,15 +1,33 @@
-# TAKE OVER · Milestone 2.0
+# takeover-engine · TAKE OVER M2.0
 
 TAKEOVER • Fotografiska • 2026
 
-A sparse, multilingual operating surface for a growing multiplex community.
+A small typed engine extracted from the working TAKE OVER application, with the Fotografiska Streamlit interface retained as its first consumer.
+
+The engine turns validated facts into explicit registry state, applies reversible temporary overlays, emits events through injected boundaries, and produces interface-neutral projections.
+
+## Install the engine
+
+```bash
+python -m pip install "takeover-engine @ git+https://github.com/kumiori/26dedb51f78f282d5a7dd693454c3756.git@v0.1.0"
+```
+
+```python
+from takeover_engine import Entity, Overlay, RegistryState, apply_overlay, project_network
+
+facts = RegistryState(entities=(Entity("host", "person", "Host"),))
+preview = Overlay("preview", entities=(Entity("guest", "person", "Guest"),))
+network = project_network(apply_overlay(facts, preview).state)
+```
+
+The root `takeover_engine` exports the stable API. Adapters and `takeover_fotografiska` are experimental in 0.x. See `ARCHITECTURE.md`, `MIGRATION.md`, `AGENTS.md`, and `examples/minimal_consumer`.
 
 ## Run locally
 
 ```bash
 python -m venv .venv
 source .venv/bin/activate
-python -m pip install -e '.[dev]'
+python -m pip install -e '.[app,dev]'
 streamlit run app.py
 ```
 

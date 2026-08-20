@@ -19,7 +19,9 @@ def test_timeline_starts_two_days_ago_and_extends_two_calendar_months() -> None:
     assert timeline["window_start"] == datetime(2026, 8, 17, 12, tzinfo=timezone.utc)
     assert timeline["window_end"] == datetime(2026, 10, 19, 12, tzinfo=timezone.utc)
     assert timeline["actual_bytes"] == [100, 120, 125, 125]
+    assert timeline["actual_counts"] == [1, 2, 3, 3]
     assert timeline["horizon_bytes"] == [125, 125]
+    assert timeline["horizon_counts"] == [3, 3]
 
 
 def test_missing_timestamps_are_reported_not_invented() -> None:

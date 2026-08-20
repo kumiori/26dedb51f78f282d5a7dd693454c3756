@@ -41,23 +41,30 @@ def storage_timeline(
     timestamped.sort(key=lambda item: item[0])
 
     running = sum(size for modified, size in timestamped if modified < window_start)
+    running_count = sum(1 for modified, _size in timestamped if modified < window_start)
     actual_times = [window_start]
     actual_bytes = [running]
+    actual_counts = [running_count]
     for modified, size in timestamped:
         if window_start <= modified <= observed_now:
             running += size
+            running_count += 1
             actual_times.append(modified)
             actual_bytes.append(running)
+            actual_counts.append(running_count)
     actual_times.append(observed_now)
     actual_bytes.append(running)
+    actual_counts.append(running_count)
     return {
         "window_start": window_start,
         "now": observed_now,
         "window_end": window_end,
         "actual_times": actual_times,
         "actual_bytes": actual_bytes,
+        "actual_counts": actual_counts,
         "horizon_times": [observed_now, window_end],
         "horizon_bytes": [running, running],
+        "horizon_counts": [running_count, running_count],
         "timestamped_objects": len(timestamped),
         "missing_timestamps": missing_timestamps,
     }

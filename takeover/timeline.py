@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from datetime import date, datetime
 from typing import Any
+import html
+import json
 
 import plotly.graph_objects as go
 import yaml
@@ -75,6 +77,47 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
         hoverlabel={"font": {"family": "Courier New, monospace"}},
     )
     return figure
+
+
+def histropedia_articles(payload: dict[str, Any]) -> list[dict[str, Any]]:
+    """Map dated trajectory primitives to HistropediaJS Article data."""
+    articles = []
+    for event in sorted(payload["primitives"], key=lambda item: str(item.get("date") or "")):
+        if not event.get("date"):
+            continue
+        event_date = _as_histropedia_date(event["date"])
+        kind = str(event.get("type") or "event").replace("_", " ").upper()
+        visibility = str(event.get("visibility") or "").upper()
+        articles.append({
+            "id": str(event["id"]),
+            "title": str(event.get("title") or kind.title()),
+            "subtitle": " · ".join(value for value in (kind, visibility) if value),
+            "from": event_date,
+        })
+    return articles
+
+
+def _as_histropedia_date(value: Any) -> dict[str, int]:
+    parsed = datetime.fromisoformat(str(value)).date()
+    return {"year": parsed.year, "month": parsed.month, "day": parsed.day}
+
+
+def build_histropedia_html(payload: dict[str, Any], library_source: str) -> str:
+    """Build a self-contained HistropediaJS timeline from the YAML payload."""
+    articles = json.dumps(histropedia_articles(payload), ensure_ascii=False).replace("<", "\\u003c")
+    dated = [event for event in payload["primitives"] if event.get("date")]
+    initial = _as_histropedia_date(min(str(event["date"]) for event in dated))
+    title = html.escape(str(payload["plan"].get("title") or "TAKE OVER"))
+    return f"""<!doctype html><html><head><meta charset="utf-8"><style>
+    html,body,#histropedia-timeline{{width:100%;height:100%;margin:0;background:#f5f2ed;overflow:hidden}}
+    #source{{position:absolute;z-index:2;top:10px;left:12px;font:10px 'Courier New',monospace;letter-spacing:.1em;color:#111}}
+    </style></head><body><div id="source">{title} · YAML SOURCE</div><div id="histropedia-timeline"></div>
+    <script>{library_source}</script><script>
+    const articles={articles};
+    const root=document.getElementById('histropedia-timeline');
+    const timeline=new Histropedia.Timeline(root,{{width:root.clientWidth,height:620,initialDate:{json.dumps(initial)},zoom:{{initial:27}},enableUserControl:true}});
+    timeline.load(articles);
+    </script></body></html>"""
 
 
 def build_time_mapping_figure(payload: dict[str, Any]) -> go.Figure:

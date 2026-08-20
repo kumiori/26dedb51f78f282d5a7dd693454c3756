@@ -132,10 +132,11 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     app = AppTest.from_file("app.py").run(timeout=20)
     app.button[1].click().run(timeout=20)
     assert not app.exception
-    assert len(app.get("plotly_chart")) == 2
+    assert len(app.get("plotly_chart")) == 1
     assert any("TENTATIVE LINEAR" in block.value for block in app.markdown)
-    assert len(app.main.get("plotly_chart")) == 1
+    assert len(app.main.get("plotly_chart")) == 0
     assert len(app.sidebar.get("plotly_chart")) == 1
+    assert len(app.get("iframe")) == 1
     assert len(app.sidebar.dataframe) == 3
     assert any("PHASE: APPLICATION" in block.value for block in app.main.markdown)
     assert not any("TENTATIVE LINEAR" in block.value for block in app.main.markdown)
@@ -152,8 +153,16 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     next(button for button in app.button if button.label == "RESOURCES").click().run(timeout=20)
     assert not app.exception
     assert len(app.get("plotly_chart")) == 1
+    assert {metric.label for metric in app.metric} >= {"BUCKET OF DOUGH", "BUCKET OF GOLD", "TOTAL FILES"}
     assert any("OBSERVED INTENTION" in block.value for block in app.caption)
-    assert len(app.dataframe) == 3
+    assert len(app.main.dataframe) == 0
+    assert len(app.sidebar.dataframe) == 3
+    assert any(control.label == "SCALING FACTOR · s" for control in app.sidebar.number_input)
+    assert any(expander.label == "RELEVANT DATASETS" for expander in app.sidebar.expander)
+    sidebar_corpus = " ".join(block.value for block in app.sidebar.markdown)
+    assert "BUCKET OF DOUGH" in sidebar_corpus
+    assert "INVESTMENT INTENTIONS" in sidebar_corpus
+    assert "TRAJECTORY EVENTS USED" in sidebar_corpus
 
 
 def test_developer_add_node_flow(monkeypatch) -> None:

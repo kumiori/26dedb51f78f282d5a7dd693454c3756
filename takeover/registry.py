@@ -6,6 +6,8 @@ from dataclasses import asdict
 from typing import Protocol
 
 from .models import Entity, Necessity, Relation
+from takeover_engine import Entity as EngineEntity
+from takeover_engine import Overlay, RegistryState, Relation as EngineRelation, apply_overlay
 
 
 NECESSITY_ROWS = (
@@ -46,15 +48,35 @@ SEED_RELATIONS = (
 def with_rc0_seeds(
     entities: list[Entity], relations: list[Relation]
 ) -> tuple[list[Entity], list[Relation]]:
-    """Overlay the submission kernel without writing into the backing registry."""
-    entity_ids = {entity.id for entity in entities}
-    relation_ids = {relation.id for relation in relations}
+    """Apply the RC0 payload through the package's generic overlay operation."""
+    def to_engine_entity(item: Entity) -> EngineEntity:
+        return EngineEntity(item.id, item.type, item.title, item.label, item.stage, item.status, item.source, metadata=item.metadata)
+
+    def to_engine_relation(item: Relation) -> EngineRelation:
+        return EngineRelation(item.id, item.source, item.target, item.type, item.stage, item.status)
+
+    # Some legacy adapters can return a partial fixture containing an edge
+    # before both endpoints. Complete only those referenced endpoints from the
+    # application seed so the validated engine state never contains a dangling
+    # relation.
+    source_entities = list(entities)
+    source_ids = {item.id for item in source_entities}
+    referenced_ids = {endpoint for item in relations for endpoint in (item.source, item.target)}
+    seed_by_id = {item.id: item for item in (*SEED_ENTITIES, *PRESEED_ENTITIES)}
+    source_entities.extend(seed_by_id[item_id] for item_id in referenced_ids - source_ids if item_id in seed_by_id)
+    state = RegistryState(
+        entities=tuple(to_engine_entity(item) for item in source_entities),
+        relations=tuple(to_engine_relation(item) for item in relations),
+    )
+    overlay = Overlay(
+        id="fotografiska-rc0",
+        entities=tuple(to_engine_entity(item) for item in (*SEED_ENTITIES, *PRESEED_ENTITIES)),
+        relations=tuple(to_engine_relation(item) for item in SEED_RELATIONS),
+    )
+    applied = apply_overlay(state, overlay).state
     return (
-        [
-            *entities,
-            *(entity for entity in (*SEED_ENTITIES, *PRESEED_ENTITIES) if entity.id not in entity_ids),
-        ],
-        [*relations, *(relation for relation in SEED_RELATIONS if relation.id not in relation_ids)],
+        [Entity(item.id, item.type, item.title, item.label, item.stage, item.status, item.source, dict(item.metadata)) for item in applied.entities],
+        [Relation(item.id, item.source, item.target, item.type, item.stage, item.status) for item in applied.relations],
     )
 
 

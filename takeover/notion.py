@@ -12,10 +12,6 @@ from notion_client import Client
 from .models import Entity, Necessity, Relation
 
 
-ROOT = Path(__file__).resolve().parents[1]
-DEFAULT_MANIFEST = ROOT / "config" / "takeover_notion.json"
-
-
 def _plain(prop: dict[str, Any]) -> str:
     values = prop.get("title") or prop.get("rich_text") or []
     return "".join(str(value.get("plain_text") or "") for value in values)
@@ -35,7 +31,8 @@ def _text(value: str) -> list[dict[str, Any]]:
 
 
 class NotionRegistry:
-    def __init__(self, token: str, manifest_path: Path = DEFAULT_MANIFEST) -> None:
+    def __init__(self, token: str, manifest_path: Path) -> None:
+        """Create a registry from an explicit, application-owned manifest."""
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
         self.sources = {
             key: value["data_source_id"]
@@ -151,4 +148,3 @@ class NotionRegistry:
             properties=props,
         )
         return entity
-

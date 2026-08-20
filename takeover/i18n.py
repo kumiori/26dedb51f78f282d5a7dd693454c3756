@@ -109,7 +109,7 @@ UTTERANCES = (
     u("resources_intro", "Resources change what becomes possible. Money is the first visible dimension; intention, committed funds and spending remain distinct.", 12, "Ressursid muudavad seda, mis saab võimalikuks. Raha on esimene nähtav mõõde; kavatsus, siduv rahastus ja kulutused jäävad eraldi.", "Ресурсы меняют то, что становится возможным. Деньги — первое видимое измерение; намерение, обязательства и расходы остаются раздельными."),
     u("observed_intention", "OBSERVED INTENTION · NOT AVAILABLE FUNDS", 10, "TÄHELDATUD KAVATSUS · MITTE KÄTTESAADAV RAHA", "ЗАФИКСИРОВАННОЕ НАМЕРЕНИЕ · НЕ ДОСТУПНЫЕ СРЕДСТВА"),
     u("datasets", "RELEVANT DATASETS", 12, "ASJAKOHASED ANDMESTIKUD", "РЕЛЕВАНТНЫЕ НАБОРЫ ДАННЫХ"),
-    u("allocated_dataset", "ALLOCATED RESOURCES", 10, "ERALDATUD RESSURSID", "ВЫДЕЛЕННЫЕ РЕСУРСЫ"),
+    u("allocated_dataset", "BUCKET OF DOUGH", 10, "ERALDATUD RESSURSID", "ВЫДЕЛЕННЫЕ РЕСУРСЫ"),
     u("intentions_dataset", "INVESTMENT INTENTIONS", 10, "INVESTEERIMISKAVATSUSED", "ИНВЕСТИЦИОННЫЕ НАМЕРЕНИЯ"),
     u("trajectory_dataset", "TRAJECTORY EVENTS USED", 10, "KASUTATUD TRAJEKTOORI SÜNDMUSED", "ИСПОЛЬЗОВАННЫЕ СОБЫТИЯ ТРАЕКТОРИИ"),
     u("time_mapping", "TENTATIVE LINEAR ↔ NONLINEAR TIME MAP", 12, "ESIALGNE LINEAARSE ↔ MITTELINEAARSE AJA KAART", "ПРЕДВАРИТЕЛЬНАЯ КАРТА ЛИНЕЙНОГО ↔ НЕЛИНЕЙНОГО ВРЕМЕНИ"),

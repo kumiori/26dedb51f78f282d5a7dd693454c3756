@@ -9,6 +9,8 @@ from typing import Any
 import plotly.graph_objects as go
 import yaml
 
+from takeover.storage_timeline import storage_timeline
+
 
 def _as_date(value: Any) -> date:
     return datetime.fromisoformat(str(value)).date()
@@ -54,56 +56,52 @@ def build_resources_figure(trajectory: dict[str, Any], resources: dict[str, Any]
     x_by_date = {_as_date(item["date"]): x for x, item in zip(allocation_x, allocations)}
 
     figure = go.Figure()
+    field_x = allocation_x + event_x
+    field_rows = [
+        [_as_date(item["date"]).isoformat(), item["timing"], item.get("label", ""), "OBSERVED RESOURCE STATE"]
+        for item in allocations
+    ] + [
+        [str(item.get("date") or ""), str(item.get("title") or ""), str(item.get("type") or "event"), "TRAJECTORY EVENT"]
+        for item in dated_events
+    ]
     figure.add_trace(go.Scatter(
-        x=allocation_x,
-        y=[0.0, 0.0, 0.0],
+        x=field_x,
+        y=[0.0] * len(field_x),
         mode="lines+markers+text",
-        name="ALLOCATED RESOURCES",
-        line={"color": "#111", "width": 2},
-        marker={"color": "#111", "size": 8},
-        text=[item["timing"] for item in allocations],
+        name="BUCKET OF DOUGH",
+        line={"color": "#111", "width": 3, "shape": "spline", "smoothing": 0.75},
+        marker={"color": "#111", "size": [11] * len(allocations) + [8] * len(dated_events)},
+        text=[item["timing"] for item in allocations] + [""] * len(dated_events),
         textposition="bottom center",
         textfont={"family": "Courier New, monospace", "size": 10, "color": "#111"},
-        customdata=[[_as_date(item["date"]).isoformat(), item["timing"], item.get("label", "")] for item in allocations],
-        hovertemplate="%{customdata[0]} · %{customdata[1]}<br>%{customdata[2]}<br>ALLOCATED · €%{y:.0f}<extra></extra>",
+        customdata=field_rows,
+        hovertemplate="%{customdata[0]} · %{customdata[1]}<br>%{customdata[2]}<br>%{customdata[3]} · €%{y:.0f} ALLOCATED<extra></extra>",
     ))
     figure.add_annotation(
         x=allocation_x[0], y=0,
         text="D−2 · INCEPTION: THE MYTH OF THE CAVE",
-        showarrow=True, arrowhead=0, ax=40, ay=-65, align="left",
+        showarrow=False, xanchor="left", yshift=-52, align="left",
         font={"family": "Courier New, monospace", "size": 10, "color": "#111"},
     )
 
-    # A Dirac-like impulse is drawn against a hidden, dimensionless axis. Its
-    # height means concentration of intention, never euros; every source row
-    # continues to carry amount_eur: 0.
-    delta_x: list[float | None] = []
-    delta_y: list[float | None] = []
+    # Intention has presence and timing, but no numeric magnitude or EUR value.
     impulse_x: list[float] = []
     impulse_custom: list[list[str]] = []
     for item in intentions:
         x = x_by_date[_as_date(item["date"])]
-        delta_x.extend([x, x, None])
-        delta_y.extend([0.0, 1.0, None])
         impulse_x.append(x)
         impulse_custom.append([item["timing"], item["label"], "€0 ALLOCATED"])
     figure.add_trace(go.Scatter(
-        x=delta_x, y=delta_y, yaxis="y2", mode="lines",
-        name="INVESTMENT INTENTION · δ",
-        line={"color": "#315f78", "width": 3},
-        hoverinfo="skip",
-    ))
-    figure.add_trace(go.Scatter(
-        x=impulse_x, y=[1.0] * len(impulse_x), yaxis="y2", mode="markers",
+        x=impulse_x, y=[0.0] * len(impulse_x), mode="markers",
         name="INTENTION",
-        marker={"color": "#315f78", "size": 14, "symbol": "diamond", "line": {"color": "#f5f2ed", "width": 2}},
+        marker={"color": "#315f78", "size": 22, "symbol": "diamond", "line": {"color": "#f5f2ed", "width": 2}},
         customdata=impulse_custom,
         hovertemplate="%{customdata[0]}<br>%{customdata[1]}<br>%{customdata[2]}<extra></extra>",
     ))
     figure.add_annotation(
-        x=impulse_x[0], y=1.0, yref="y2",
-        text="D−1 · INTENTION<br>CONCENTRATION OF INTENTION · €0",
-        showarrow=True, arrowhead=0, ax=80, ay=-45, align="left",
+        x=impulse_x[0], y=0,
+        text="D−1 · INTENTION<br>NO ALLOCATED VALUE",
+        showarrow=False, xanchor="left", xshift=14, yshift=-28, align="left",
         font={"family": "Courier New, monospace", "size": 10, "color": "#315f78"},
     )
     figure.update_layout(
@@ -119,13 +117,120 @@ def build_resources_figure(trajectory: dict[str, Any], resources: dict[str, Any]
             "showgrid": False, "zeroline": False,
         },
         yaxis={
-            "title": "ALLOCATED · EUR", "range": [-0.08, 0.32],
+            "title": "BUCKET OF DOUGH · EUR", "range": [-0.75, 0.45],
             "tickmode": "array", "tickvals": [0], "ticktext": ["€0"],
             "showgrid": False, "zeroline": True, "zerolinecolor": "rgba(17,17,17,.24)",
         },
-        yaxis2={"overlaying": "y", "side": "right", "range": [0, 1.18], "visible": False, "fixedrange": True},
         font={"family": "Courier New, monospace", "color": "#111"},
         legend={"orientation": "h", "x": 0, "y": 1.14, "font": {"size": 9}},
         hoverlabel={"font": {"family": "Courier New, monospace"}},
+        shapes=[{
+            "type": "line", "xref": "x", "yref": "y",
+            "x0": event_x[-1] if event_x else allocation_x[-1], "x1": 1.04, "y0": 0, "y1": 0,
+            "line": {"color": "rgba(17,17,17,.24)", "width": 3},
+        }],
+    )
+    return figure
+
+
+def build_bucket_figure(objects: list[dict[str, Any]]) -> go.Figure:
+    """Plot one interpolated cumulative encrypted-volume line from observed metadata."""
+    timeline = storage_timeline(objects)
+    megabytes = [value / 1024 / 1024 for value in timeline["actual_bytes"]]
+    figure = go.Figure()
+    figure.add_trace(go.Scatter(
+        x=timeline["actual_times"], y=megabytes,
+        mode="lines+markers", name="BUCKET OF GOLD",
+        line={"color": "#111", "width": 3, "shape": "spline", "smoothing": 1.0},
+        marker={"color": "#111", "size": 9},
+        hovertemplate="%{x|%d %b %Y · %H:%M}<br>%{y:.3f} MB<extra></extra>",
+    ))
+    figure.update_layout(
+        height=610, margin={"l": 65, "r": 65, "t": 90, "b": 70},
+        paper_bgcolor="#f5f2ed", plot_bgcolor="#f5f2ed",
+        title={"text": "Encrypted bucket", "x": 0, "font": {"family": "Courier New, monospace", "size": 19}},
+        xaxis={"title": "OBSERVED TIME", "showgrid": False},
+        yaxis={"title": "TOTAL VOLUME · MB", "rangemode": "tozero", "gridcolor": "rgba(17,17,17,.08)"},
+        legend={"orientation": "h", "x": 0, "y": 1.14, "font": {"size": 9}},
+        font={"family": "Courier New, monospace", "color": "#111"},
+        hoverlabel={"font": {"family": "Courier New, monospace"}},
+    )
+    return figure
+
+
+def build_combined_resources_figure(
+    trajectory: dict[str, Any], resources: dict[str, Any], objects: list[dict[str, Any]],
+    *, volume_scale: float = 1.0,
+) -> go.Figure:
+    """Combine resources and encrypted volume on one explicit scaled axis."""
+    allocations = resources["allocated_resources"]["observations"]
+    events = sorted(
+        (item for item in trajectory["primitives"] if item.get("date")),
+        key=lambda item: str(item["date"]),
+    )
+    resource_dates = [str(item["date"]) for item in allocations] + [str(item["date"]) for item in events]
+    resource_labels = [str(item["timing"]) for item in allocations] + [str(item.get("title") or "") for item in events]
+    resource_kinds = ["OBSERVED RESOURCE STATE"] * len(allocations) + ["TRAJECTORY EVENT"] * len(events)
+
+    figure = go.Figure()
+    figure.add_trace(go.Scatter(
+        x=resource_dates, y=[0.0] * len(resource_dates),
+        mode="lines+markers", name="BUCKET OF DOUGH · €0",
+        line={"color": "#111", "width": 3, "shape": "spline", "smoothing": 0.75},
+        marker={"color": "#111", "size": [11] * len(allocations) + [8] * len(events)},
+        customdata=[[label, kind] for label, kind in zip(resource_labels, resource_kinds)],
+        hovertemplate="%{x|%d %b %Y}<br>%{customdata[0]}<br>%{customdata[1]} · €0 ALLOCATED<extra></extra>",
+    ))
+
+    for item in resources["investment_intentions"]:
+        intention_date = str(item["date"])
+        figure.add_trace(go.Scatter(
+            x=[intention_date], y=[0.0], mode="markers",
+            name="INTENTION",
+            marker={"color": "#315f78", "size": 22, "symbol": "diamond", "line": {"color": "#f5f2ed", "width": 2}},
+            customdata=[[item["timing"], item["label"]]],
+            hovertemplate="%{x|%d %b %Y}<br>%{customdata[0]} · %{customdata[1]}<br>INTENTION · NO ALLOCATED VALUE<extra></extra>",
+        ))
+
+    storage = storage_timeline(objects)
+    scale_bytes = max(int(storage["actual_bytes"][-1]), 1)
+    physical_megabytes = [value / 1024 / 1024 for value in storage["actual_bytes"]]
+    scale = max(float(volume_scale), 0.01)
+    scaled_volume = [scale * value / scale_bytes for value in storage["actual_bytes"]]
+    figure.add_trace(go.Scatter(
+        x=storage["actual_times"],
+        y=scaled_volume,
+        mode="lines+markers", name="BUCKET OF GOLD · V̂",
+        line={"color": "#9f7860", "width": 3, "shape": "spline", "smoothing": 1.0},
+        marker={"color": "#9f7860", "size": 9, "line": {"color": "#f5f2ed", "width": 1}},
+        customdata=[[value] for value in physical_megabytes],
+        hovertemplate="%{x|%d %b %Y · %H:%M}<br>V̂=%{y:.3f}<br>%{customdata[0]:.3f} MB<extra></extra>",
+    ))
+
+    figure.update_layout(
+        height=420, margin={"l": 62, "r": 62, "t": 64, "b": 54},
+        paper_bgcolor="#f5f2ed", plot_bgcolor="#f5f2ed",
+        title={"text": "Resources / shared scale", "x": 0, "font": {"family": "Courier New, monospace", "size": 19, "color": "#111"}},
+        xaxis={
+            "title": {"text": "CALENDAR DATE", "font": {"color": "#111"}},
+            "tickfont": {"color": "#111"}, "showgrid": False, "zeroline": False,
+        },
+        yaxis={
+            "title": {"text": "SHARED STATE SCALE", "font": {"color": "#111"}},
+            "range": [-0.12 * max(1.0, scale), max(1.15, scale * 1.15)],
+            "tickmode": "array", "tickvals": [0, scale],
+            "ticktext": ["€0", f"V̂ₛ(now)={scale:g}"],
+            "tickfont": {"color": "#111"},
+            "showgrid": True, "gridcolor": "rgba(17,17,17,.08)",
+            "zeroline": True, "zerolinecolor": "rgba(17,17,17,.28)",
+        },
+        legend={
+            "orientation": "h", "x": 0, "y": 1.14,
+            "font": {"family": "Courier New, monospace", "size": 10, "color": "#111"},
+            "bgcolor": "rgba(245,242,237,.88)",
+        },
+        font={"family": "Courier New, monospace", "color": "#111"},
+        hoverlabel={"font": {"family": "Courier New, monospace"}},
+        hovermode="x unified",
     )
     return figure
