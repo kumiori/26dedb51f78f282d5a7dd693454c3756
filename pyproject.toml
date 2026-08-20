@@ -5,6 +5,9 @@ build-backend = "setuptools.build_meta"
 [tool.setuptools]
 packages = ["takeover"]
 
+[tool.poetry]
+package-mode = false
+
 [project]
 name = "fotografiska-takeover"
 version = "0.1.0"
