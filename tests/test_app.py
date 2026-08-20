@@ -1,7 +1,17 @@
+from types import SimpleNamespace
+
 from streamlit.testing.v1 import AppTest
 
 from takeover.i18n import UTTERANCES, language_term
 from takeover.style import CSS
+
+
+class FakeDropS3:
+    def list_objects_v2(self, *, Bucket):
+        return {"Contents": []}
+
+    def generate_presigned_url(self, *_args, **_kwargs):
+        return "https://storage.invalid/private-upload"
 
 
 def test_m1_initial_state_is_sparse(monkeypatch) -> None:
@@ -42,6 +52,39 @@ def test_rc0_application_state_and_qr_activation_are_visible(monkeypatch) -> Non
         event["label_key"] == "event_invitation_activation"
         for event in app.session_state["takeover_event_log"]
     ) == 1
+
+
+def test_main_page_drop_link_opens_the_private_encrypted_drop(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    monkeypatch.setattr("boto3.client", lambda *_args, **_kwargs: FakeDropS3())
+    monkeypatch.setattr(
+        "takeover.browser_encrypt.encrypted_drop",
+        lambda **_kwargs: SimpleNamespace(uploaded=None),
+    )
+    app = AppTest.from_file("app.py")
+    app.secrets = {
+        "filebase": {
+            "endpoint": "https://storage.invalid",
+            "access_key": "test-access",
+            "secret_key": "test-secret",
+            "bucket": "takeover-test",
+        },
+        "takeover_identities": {
+            "ave": {
+                "access_key": "ECB7AD5B28E3DED2C2C6B95CD9A00E5B",
+                "capability": "invite-capability",
+                "drop_token": "ave-TEST",
+            }
+        },
+    }
+    app.query_params["k"] = "ave-TEST"
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert [title.value for title in app.main.title] == ["TAKE OVER"]
+    corpus = " ".join(block.value for block in app.markdown)
+    assert "PLAINTEXT STAYS IN THIS BROWSER" in corpus
+    assert "SELECT · ENCRYPT · SEND" in " ".join(caption.value for caption in app.caption)
 
 
 def test_any_invitation_source_is_normalised_and_captured(monkeypatch) -> None:

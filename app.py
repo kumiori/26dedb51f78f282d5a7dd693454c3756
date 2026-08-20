@@ -6,14 +6,20 @@ import os
 from pathlib import Path
 import re
 import html
+from datetime import datetime, timezone
+import hashlib
+import uuid
 
 import streamlit as st
 import streamlit.components.v1 as components
 
 from takeover.analytics import emit_google_event, normalise_activation
+from takeover.browser_encrypt import encrypted_drop
 from takeover.call import load_call
 from takeover.graph import build_graph_html
 from takeover.events import list_events, record_event, record_event_once
+from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
+from takeover.identity import resolve_drop_token
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
@@ -29,6 +35,7 @@ RESOURCES = ROOT / "config" / "takeover_resources.yaml"
 CALL = ROOT / "config" / "takeover_call.yaml"
 LISTENING = ROOT / "config" / "takeover_listening.yaml"
 HISTROPEDIA = ROOT / "assets" / "vendor" / "histropedia.umd.min.js"
+ENCRYPTED_REGISTRY = Path(os.getenv("TAKEOVER_ENCRYPTED_REGISTRY", ROOT / "data" / "encrypted_storage_v1.json"))
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -109,6 +116,119 @@ def _bucket_objects() -> tuple[list[dict], str]:
         return [], "STORAGE NOT CONFIGURED"
     except (BotoCoreError, ClientError, OSError) as exc:
         return [], f"BUCKET UNAVAILABLE · {type(exc).__name__}"
+
+
+def _drop_storage_context():
+    """Resolve private drop configuration only when a drop link is opened."""
+    try:
+        import boto3
+        from botocore.config import Config
+
+        cfg = st.secrets["filebase"]
+        identities = {
+            name: dict(value) for name, value in st.secrets["takeover_identities"].items()
+        }
+        signature = "s3v4" if cfg.get("signature_version", "v4") == "v4" else cfg["signature_version"]
+        client = boto3.client(
+            "s3", endpoint_url=cfg["endpoint"],
+            aws_access_key_id=cfg["access_key"], aws_secret_access_key=cfg["secret_key"],
+            region_name=cfg.get("region", "auto"),
+            config=Config(signature_version=signature, connect_timeout=3, read_timeout=5, retries={"max_attempts": 1}),
+        )
+        return client, str(cfg["bucket"]), identities, ""
+    except (KeyError, TypeError):
+        return None, "", {}, "STORAGE IS NOT CONFIGURED"
+
+
+@st.dialog("DROP / PRIVATE", width="large")
+def resource_drop_dialog(participant: str, identities: dict, s3, bucket: str) -> None:
+    from botocore.exceptions import BotoCoreError, ClientError
+
+    st.caption(f"FOR · {participant}")
+    st.write("SELECT A FILE. PLAINTEXT STAYS IN THIS BROWSER; ONLY CIPHERTEXT ENTERS THE BUCKET OF GOLD.")
+    contribution_id = str(uuid.uuid4())
+    namespace = hashlib.sha256(identities[participant]["capability"].encode()).hexdigest()[:16]
+    object_key = f"private/{participant}/{namespace}/{contribution_id}.enc"
+    try:
+        upload_url = s3.generate_presigned_url(
+            "put_object",
+            Params={"Bucket": bucket, "Key": object_key, "ContentType": "application/octet-stream"},
+            ExpiresIn=900,
+        )
+    except (BotoCoreError, ClientError) as exc:
+        st.error(f"DROP COULD NOT BE PREPARED · {type(exc).__name__}")
+        return
+
+    result = encrypted_drop(
+        data={
+            "upload_url": upload_url, "object_key": object_key,
+            "contribution_id": contribution_id, "participant": participant,
+            "identity_key": identities[participant]["access_key"],
+            "content_type": "application/octet-stream",
+        },
+        default={"uploaded": None},
+        key=f"resource-private-drop-{participant}",
+        on_uploaded_change=lambda: None,
+    )
+    if not result.uploaded:
+        st.caption("SELECT · ENCRYPT · SEND")
+        return
+
+    uploaded = dict(result.uploaded)
+    expected_prefix = f"private/{participant}/{namespace}/"
+    valid = (
+        uploaded.get("contributor_id") == participant
+        and str(uploaded.get("key", "")).startswith(expected_prefix)
+        and uploaded.get("algorithm") == "AES-256-GCM"
+        and uploaded.get("version") == 1
+        and all(re.fullmatch(r"[A-Za-z0-9_-]+", str(uploaded.get(field, ""))) for field in ("iv", "salt", "wrap_iv", "wrapped_key"))
+    )
+    if not valid:
+        st.error("DROP METADATA FAILED VALIDATION")
+        return
+    try:
+        meta = s3.head_object(Bucket=bucket, Key=uploaded["key"])
+    except (BotoCoreError, ClientError) as exc:
+        st.error(f"DROP COULD NOT BE VERIFIED · {type(exc).__name__}")
+        return
+
+    cid = meta.get("Metadata", {}).get("cid") or meta.get("ResponseMetadata", {}).get("HTTPHeaders", {}).get("x-amz-meta-cid")
+    row = EncryptedRegistry(ENCRYPTED_REGISTRY).add(EncryptedContribution(
+        id=uploaded["id"], contributor_id=participant,
+        created_at=datetime.now(timezone.utc).isoformat(),
+        object={
+            "cid": cid, "key": uploaded["key"], "filename": uploaded["filename"],
+            "encrypted_bytes": int(meta.get("ContentLength", uploaded["encrypted_bytes"])),
+            "original_bytes": int(uploaded["original_bytes"]),
+            "mime_type": "application/octet-stream",
+            "original_mime_type": uploaded["original_mime_type"],
+        },
+        crypto={
+            "algorithm": "AES-256-GCM", "version": 1, "iv": uploaded["iv"],
+            "kdf": uploaded["kdf"], "salt": uploaded["salt"], "wrap_iv": uploaded["wrap_iv"],
+            "wrapped_key": uploaded["wrapped_key"], "key_reference": uploaded["key_reference"],
+        },
+    ))
+    _bucket_objects.clear()
+    st.success("RECEIVED / BUCKET OF GOLD")
+    st.write(f"**FILE**  {row.object['filename']}")
+    st.write(f"**WEIGHT**  {row.object['encrypted_bytes']:,} bytes")
+    st.write(f"**CID**  `{row.object['cid'] or 'CID pending'}`")
+
+
+def render_resource_drop_link() -> None:
+    token = str(st.query_params.get("k", "") or "").strip()
+    if not token:
+        return
+    s3, bucket, identities, error = _drop_storage_context()
+    if error:
+        st.error(error)
+        return
+    participant = resolve_drop_token(token, identities)
+    if participant is None:
+        st.warning("THIS DROP LINK IS NOT ACTIVE")
+        return
+    resource_drop_dialog(participant, identities, s3, bucket)
 
 
 measurement_id = _analytics_measurement_id()
@@ -504,6 +624,7 @@ def render_network(repo, mode: str) -> None:
     if str(st.query_params.get("state", "") or "") == "art":
         record_event_once(st.session_state, "state-of-art-open", "event_state_opened")
         state_dialog(entities, relations)
+    render_resource_drop_link()
     if os.getenv("TAKEOVER_ADMIN_MODE", "").strip() == "1":
         render_admin(repo, mode)
 
@@ -681,6 +802,8 @@ def render_voices() -> None:
 
 repo, registry_mode = registry()
 current_view = st.session_state.get("takeover_view") or str(st.query_params.get("view", "network"))
+if str(st.query_params.get("k", "") or "").strip():
+    current_view = "network"
 if current_view not in {"network", "timeline", "necessities", "resources", "voices"}:
     current_view = "network"
 render_nav(current_view)
