@@ -16,7 +16,19 @@ class FakeS3:
 
 def test_storage_page_lists_bucket_accounting(monkeypatch) -> None:
     monkeypatch.setattr("boto3.client", lambda *_args, **_kwargs: FakeS3())
-    app = AppTest.from_file("pages/98_IPFS_Storage_Test.py").run(timeout=20)
+    app = AppTest.from_file("pages/98_IPFS_Storage_Test.py")
+    app.secrets = {
+        "filebase": {
+            "endpoint": "https://storage.invalid",
+            "access_key": "test-access",
+            "secret_key": "test-secret",
+            "bucket": "takeover-fotografiska",
+            "region": "auto",
+            "signature_version": "v4",
+        },
+        "takeover_identities": {},
+    }
+    app.run(timeout=20)
 
     assert not app.exception
     assert [title.value for title in app.title] == ["DROP / TEST"]
