@@ -3,14 +3,17 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+import hashlib
 import json
 from pathlib import Path
+import secrets
 from typing import Any
 
 from notion_client import Client
 
 from .models import Entity, Necessity, Relation
 from .node_population import PlayerPopulation
+from .player_invitations import CapabilityResolution
 
 
 def _plain(prop: dict[str, Any]) -> str:
@@ -59,6 +62,60 @@ class NotionRegistry:
                 return results
             cursor = str(response.get("next_cursor") or "")
 
+    @staticmethod
+    def factory_required_properties() -> dict[str, tuple[str, ...]]:
+        return {
+            "players": (
+                "Name", "Person ID", "Label", "Image URL", "Bio", "Practice",
+                "Sample URL", "Metadata JSON", "Stage", "Status", "Network State",
+                "Visibility",
+            ),
+            "relations": (
+                "Name", "Relation ID", "Source ID", "Source Type", "Source Person",
+                "Target ID", "Target Type", "Target Person", "Relation Type", "Stage",
+                "Status", "Metadata JSON",
+            ),
+        }
+
+    def factory_schema_diagnostics(self) -> dict[str, Any]:
+        """Check only the property names needed by the player factory contract."""
+        missing = 0
+        for source, required in self.factory_required_properties().items():
+            response = self.client.data_sources.retrieve(
+                data_source_id=self.sources[source]
+            )
+            available = set((response.get("properties") or {}).keys())
+            missing += len(set(required) - available)
+        return {"compatible": missing == 0, "missing": missing}
+
+    def source_diagnostics(self) -> list[dict[str, Any]]:
+        """Return safe row counts for read-only operator diagnostics."""
+        output: list[dict[str, Any]] = []
+        for key in ("players", "photographs", "audio", "relations", "necessities"):
+            try:
+                rows = self._query_all(key)
+                active = sum(
+                    (_select((row.get("properties") or {}).get("Status") or {}) or "draft")
+                    == "active"
+                    for row in rows
+                )
+                output.append({
+                    "source": key,
+                    "status": "connected",
+                    "rows": len(rows),
+                    "active": active,
+                    "error": "",
+                })
+            except Exception as exc:
+                output.append({
+                    "source": key,
+                    "status": "error",
+                    "rows": 0,
+                    "active": 0,
+                    "error": type(exc).__name__,
+                })
+        return output
+
     def _entities(self, key: str, entity_type: str, id_name: str) -> list[Entity]:
         output: list[Entity] = []
         for page in self._query_all(key):
@@ -71,6 +128,8 @@ class NotionRegistry:
                 metadata = json.loads(raw_metadata) if raw_metadata else {}
             except json.JSONDecodeError:
                 metadata = {}
+            # Authentication verifiers are adapter-private and never enter graph projections.
+            metadata.pop("invitation_capability_hash", None)
             source_prop = "Image URL" if entity_type in {"person", "photograph"} else "Source URL"
             source = str((props.get(source_prop) or {}).get("url") or "")
             if entity_type == "person":
@@ -130,6 +189,11 @@ class NotionRegistry:
                 target=_plain(props.get("Target ID") or {}),
                 type=_plain(props.get("Relation Type") or {}),
                 stage=self.stage_by_page.get(_relation_id(props.get("Stage") or {}), "application"),
+                status=_select(props.get("Status") or {}) or "active",
+                metadata=(
+                    json.loads(_plain(props.get("Metadata JSON") or {}))
+                    if _plain(props.get("Metadata JSON") or {}) else {}
+                ),
             ))
         return output
 
@@ -222,6 +286,56 @@ class NotionRegistry:
         row["duplicates"] = max(0, len(matches) - 1)
         return row
 
+    def resolve_player_invitation(self, code: str, capability: str) -> dict[str, Any] | None:
+        """Resolve one invitation without exposing its verifier through graph entities."""
+        candidate_code = code.strip().upper()
+        candidate_hash = hashlib.sha256(capability.strip().encode("utf-8")).hexdigest()
+        matches = []
+        for page in self._query_all("players"):
+            row = self._player_from_page(page)
+            metadata = row.get("metadata") or {}
+            expected_code = str(metadata.get("invitation_code") or "").upper()
+            expected_hash = str(metadata.get("invitation_capability_hash") or "")
+            if expected_code == candidate_code and expected_hash and secrets.compare_digest(expected_hash, candidate_hash):
+                matches.append(row)
+        return matches[0] if len(matches) == 1 else None
+
+    def resolve_unfinished_player_capability(self, capability: str) -> dict[str, Any] | None:
+        """Resolve one capability only while its player node remains unfinished."""
+        candidate_hash = hashlib.sha256(capability.strip().encode("utf-8")).hexdigest()
+        matches = []
+        for page in self._query_all("players"):
+            row = self._player_from_page(page)
+            metadata = row.get("metadata") or {}
+            expected_hash = str(metadata.get("invitation_capability_hash") or "")
+            node_stage = str(metadata.get("node_stage") or "")
+            if (
+                row.get("status") == "active"
+                and node_stage in {"invited", "node_population"}
+                and expected_hash
+                and secrets.compare_digest(expected_hash, candidate_hash)
+            ):
+                matches.append(row)
+        return matches[0] if len(matches) == 1 else None
+
+    def resolve_player_capability(self, capability: str) -> CapabilityResolution:
+        """Resolve one player-scoped capability with an explicit ownership outcome."""
+        candidate = capability.strip()
+        if not candidate:
+            return CapabilityResolution("invalid")
+        candidate_hash = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
+        matches = []
+        for page in self._query_all("players"):
+            row = self._player_from_page(page)
+            expected_hash = str((row.get("metadata") or {}).get("invitation_capability_hash") or "")
+            if expected_hash and secrets.compare_digest(expected_hash, candidate_hash):
+                matches.append(row)
+        if not matches:
+            return CapabilityResolution("invalid")
+        if len(matches) != 1:
+            return CapabilityResolution("duplicate", matches=len(matches))
+        return CapabilityResolution("resolved", player=matches[0], matches=1)
+
     def upsert_player(self, payload: PlayerPopulation) -> dict[str, Any]:
         """Create or update one player by stable Person ID, then read it back."""
         if payload.project_stage not in self.stage_pages:
@@ -304,7 +418,10 @@ class NotionRegistry:
             "Relation Type": {"rich_text": _text(relation.type)},
             "Stage": {"relation": [{"id": self.stage_pages[relation.stage]}]},
             "Status": {"select": {"name": relation.status}},
-            "Metadata JSON": {"rich_text": []},
+            "Metadata JSON": {
+                "rich_text": _text(json.dumps(relation.metadata, ensure_ascii=False))
+                if relation.metadata else []
+            },
         }
         if matches:
             action = "UPDATED"
@@ -329,4 +446,8 @@ class NotionRegistry:
             "type": _plain(props.get("Relation Type") or {}),
             "stage": self.stage_by_page.get(_relation_id(props.get("Stage") or {}), ""),
             "status": _select(props.get("Status") or {}),
+            "metadata": (
+                json.loads(_plain(props.get("Metadata JSON") or {}))
+                if _plain(props.get("Metadata JSON") or {}) else {}
+            ),
         }

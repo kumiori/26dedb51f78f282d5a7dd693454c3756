@@ -1,8 +1,10 @@
 from copy import deepcopy
+import hashlib
 from pathlib import Path
 
 from takeover.node_population import PlayerPopulation, make_person_id
 from takeover.notion import NotionRegistry
+from takeover.player_invitations import create_player_invitation
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -143,7 +145,13 @@ def test_player_relation_upsert_uses_stable_id_and_real_player_endpoints() -> No
     registry.upsert_player(PlayerPopulation(player_id="kumiori", name="kumiori"))
     registry.upsert_player(PlayerPopulation(player_id="ave", name="Ave"))
 
-    relation = Relation("relation-kumiori-ave", "kumiori", "ave", "collaborates_with")
+    relation = Relation(
+        "relation-kumiori-ave",
+        "kumiori",
+        "ave",
+        "collaborates_with",
+        metadata={"provenance": "test"},
+    )
     created = registry.upsert_player_relation(relation)
     updated = registry.upsert_player_relation(relation)
 
@@ -152,6 +160,7 @@ def test_player_relation_upsert_uses_stable_id_and_real_player_endpoints() -> No
     assert updated["relation_id"] == "relation-kumiori-ave"
     assert updated["source"] == "kumiori"
     assert updated["target"] == "ave"
+    assert updated["metadata"] == {"provenance": "test"}
     assert registry.list_relations() == [relation]
 
 
@@ -174,3 +183,128 @@ def test_generated_player_initial_condition_survives_mutable_updates() -> None:
     assert updated["bio"] == "second"
     assert updated["initial_condition"] == initial
     assert updated["metadata"]["initial_condition"] == initial
+
+
+def test_invitation_resolves_only_with_code_and_matching_private_capability() -> None:
+    client = FakeNotionClient()
+    registry = NotionRegistry("test-token", ROOT / "config" / "takeover_notion.json", client=client)
+    capability = "a-long-private-capability"
+    registry.upsert_player(PlayerPopulation(
+        player_id="invited-player",
+        name="Invited Player",
+        metadata={
+            "invitation_code": "AB23C",
+            "invitation_capability_hash": hashlib.sha256(capability.encode()).hexdigest(),
+        },
+        node_stage="invited",
+        network_state="latent_private",
+    ))
+
+    resolved = registry.resolve_player_invitation("ab23c", capability)
+    entity = registry._entities("players", "person", "Person ID")[0]
+
+    assert resolved and resolved["player_id"] == "invited-player"
+    assert "invitation_capability_hash" not in entity.metadata
+    assert registry.resolve_unfinished_player_capability(capability)["player_id"] == "invited-player"
+    assert registry.resolve_player_invitation("AB23C", "wrong") is None
+    assert registry.resolve_player_invitation("WRONG", capability) is None
+
+    registry.upsert_player(PlayerPopulation(
+        player_id="invited-player",
+        name="Invited Player",
+        metadata={
+            "invitation_code": "AB23C",
+            "invitation_capability_hash": hashlib.sha256(capability.encode()).hexdigest(),
+        },
+        node_stage="ready",
+        network_state="active",
+    ))
+    assert registry.resolve_unfinished_player_capability(capability) is None
+
+
+def test_capability_resolution_is_unique_visible_and_survives_ready_transition() -> None:
+    client = FakeNotionClient()
+    registry = NotionRegistry("test-token", ROOT / "config" / "takeover_notion.json", client=client)
+    capability = "one-player-scoped-capability"
+    verifier = hashlib.sha256(capability.encode()).hexdigest()
+    registry.upsert_player(PlayerPopulation(
+        player_id="owner",
+        name="Owner",
+        metadata={"invitation_capability_hash": verifier},
+        node_stage="node_population",
+    ))
+
+    first = registry.resolve_player_capability(capability)
+    assert first.status == "resolved"
+    assert first.player and first.player["player_id"] == "owner"
+    assert first.player["metadata"]["node_stage"] == "node_population"
+
+    registry.upsert_player(PlayerPopulation(
+        player_id="owner",
+        name="Owner",
+        metadata={"invitation_capability_hash": verifier},
+        node_stage="ready",
+    ))
+    reopened = registry.resolve_player_capability(capability)
+    assert reopened.status == "resolved"
+    assert reopened.player and reopened.player["metadata"]["node_stage"] == "ready"
+
+    registry.upsert_player(PlayerPopulation(
+        player_id="duplicate-owner",
+        name="Duplicate",
+        metadata={"invitation_capability_hash": verifier},
+        node_stage="node_population",
+    ))
+    assert registry.resolve_player_capability(capability).status == "duplicate"
+    assert registry.resolve_player_capability("invalid").status == "invalid"
+
+
+def test_fresh_adapter_recovers_same_ready_player_and_saved_human_state() -> None:
+    from datetime import datetime, timezone
+
+    client = FakeNotionClient()
+    first_registry = NotionRegistry(
+        "test-token", ROOT / "config" / "takeover_notion.json", client=client
+    )
+    first_registry.upsert_player(PlayerPopulation(player_id="ave", name="Ave"))
+    invite = create_player_invitation(
+        first_registry,
+        name="Sasha",
+        inviter_id="ave",
+        practice="movement",
+        website_url="https://takeover.example",
+        request_id="recovery-request",
+        clock=lambda: datetime(2026, 8, 21, 20, tzinfo=timezone.utc),
+    )
+    entry = first_registry.resolve_player_capability(invite.capability)
+    assert entry.status == "resolved" and entry.player
+    row = entry.player
+    first_registry.upsert_player(PlayerPopulation(
+        player_id=row["player_id"],
+        name=row["name"],
+        label=row["label"],
+        image_url="https://example.test/sasha.jpg",
+        bio="Recovered text",
+        practice="movement, listening",
+        sample_url="https://example.test/sample",
+        metadata=row["metadata"],
+        initial_condition=row["initial_condition"],
+        project_stage="application",
+        node_stage="ready",
+        status="active",
+        network_state="active",
+        visibility="public",
+    ))
+
+    reopened_registry = NotionRegistry(
+        "test-token", ROOT / "config" / "takeover_notion.json", client=client
+    )
+    reopened = reopened_registry.resolve_player_capability(invite.capability)
+
+    assert reopened.status == "resolved" and reopened.player
+    assert reopened.player["player_id"] == row["player_id"]
+    assert reopened.player["bio"] == "Recovered text"
+    assert reopened.player["practice"] == "movement, listening"
+    assert reopened.player["image_url"] == "https://example.test/sasha.jpg"
+    assert reopened.player["sample_url"] == "https://example.test/sample"
+    assert reopened.player["metadata"]["node_stage"] == "ready"

@@ -9,7 +9,7 @@ from time import perf_counter
 
 import streamlit as st
 
-from takeover.node_population import PlayerPopulation, load_population_registry
+from takeover.node_population import PlayerPopulation, load_population_registry, upsert_player_verified
 from takeover.notion import NotionRegistry
 from takeover.registry import PRESEED_ENTITIES, SEED_ENTITIES
 
@@ -104,7 +104,7 @@ if read_clicked or write_clicked or repeat_clicked:
                 result = {"player_id": selected, "row_count": 0, "duplicates": 0}
         else:
             payload = build_payload()
-            result = store.upsert_player(payload)
+            result = upsert_player_verified(store, payload)
             action = str(result["action"])
         elapsed_ms = (perf_counter() - started) * 1000
         passed, failures = (verify(payload, result) if payload else (result["row_count"] <= 1, [] if result["row_count"] <= 1 else ["Duplicate Person ID"]))

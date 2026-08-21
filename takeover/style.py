@@ -42,6 +42,13 @@ h2,h3,.stCaption { font-family:'DM Mono',monospace!important; }
 .uncertainty-state>div { display:flex; justify-content:space-between; gap:1rem; padding:.25rem 0; border-top:1px solid rgba(17,17,17,.13); font-size:.58rem; letter-spacing:.055em; }
 .uncertainty-state b { font-weight:500; text-align:right; }
 .uncertainty-state p { margin:.8rem 0 0; color:var(--muted); font-size:.64rem; line-height:1.45; }
+.application-file-action { display:grid; grid-template-columns:2rem 1fr auto; align-items:center; gap:.85rem; min-height:158px; margin:2.5rem -1.1rem 1.2rem; padding:2rem 12%; border:1px solid #111; clip-path:polygon(14% 8%,100% 0,86% 92%,0 100%); background:#ff4b16; color:#111!important; filter:drop-shadow(5px 7px 0 rgba(17,17,17,.18)); text-decoration:none!important; transform:rotate(-3deg); transform-origin:50% 50%; transition:transform .16s ease,filter .16s ease,background .16s ease; }
+.application-file-action:hover,.application-file-action:focus-visible { transform:rotate(-3deg) translateY(-5px); background:#ff641f; filter:drop-shadow(7px 10px 0 rgba(17,17,17,.22)); color:#111!important; }
+.application-file-action svg { width:1.9rem; height:1.9rem; fill:currentColor; }
+.application-file-action span,.application-file-action span small,.application-file-action span strong { display:block; color:inherit!important; }
+.application-file-action span small { margin-bottom:.55rem; font-size:.52rem; letter-spacing:.15em; opacity:.72; }
+.application-file-action span strong { font-size:clamp(.72rem,1.15vw,.92rem); line-height:1.15; letter-spacing:.075em; }
+.application-file-action>b { color:#111; font-size:1.65rem; transform:rotate(3deg); }
 .takeover-process { margin-top:0; padding-left:1rem; border-left:2px solid var(--signal); font-family:'DM Mono',monospace; }
 .takeover-process p { margin:0 0 .58rem; font-size:.8125rem; line-height:1.4; }
 .takeover-process p:last-child { margin-bottom:0; }
@@ -201,6 +208,7 @@ h1.i18n-title { margin:1.2rem auto 1.5rem!important; max-width:900px; text-align
 .voice button { margin-top:1rem; padding:0; border:0; background:transparent; color:#77736e; font-family:'DM Mono',monospace; font-size:.62rem; letter-spacing:.12em; }
 .voice small { margin-left:1rem; color:#aaa6a0; font-family:'DM Mono',monospace; font-size:.6rem; }
 @media(max-width:850px){ .block-container{padding:1.2rem}.takeover-copy{padding-top:3rem}.takeover-three-blocks{grid-template-columns:1fr}.necessity{grid-template-columns:1fr 1fr}.listening{display:block}.listening span{display:block;margin-top:.5rem}.listening-item{display:block}.listening-item h3{margin:.6rem 0!important}.listening-item span,.listening-item footer{display:block;margin-top:.45rem} }
+@media(max-width:850px){ .application-file-action{min-height:142px;margin:2rem 0 1rem;padding:1.7rem 12%;grid-template-columns:1.7rem 1fr auto}.application-file-action svg{width:1.6rem;height:1.6rem} }
 @media(max-width:850px){ .takeover-footer{display:block}.takeover-footer nav{margin-top:1rem;flex-direction:column}.takeover-footer a{min-width:0} }
 @media(max-width:850px){ .voices-head{display:block}.voice-versions{grid-template-columns:1fr 1fr}.voice:hover .voice-versions{max-height:24rem} }
 </style>

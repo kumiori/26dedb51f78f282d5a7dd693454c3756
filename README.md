@@ -85,6 +85,18 @@ python scripts/bootstrap_takeover_notion.py sync-necessities
 
 The operation is idempotent: it creates or updates the eight M2.0 records, preserves their application/production stages, and archives obsolete seeded Needs.
 
+## Database diagnostics
+
+The main sidebar reports registry authority and one of `CONNECTED`, `EMPTY`, or
+`ERROR`, together with projected node and relation counts. `EMPTY` means the
+read completed but returned no active graph topology; it is distinct from a
+provider failure.
+
+The **DATABASE TEST** Streamlit page is a read-only operator surface. With a
+Notion token it checks Players, Photographs, Audio, Relations, and Necessities,
+showing only raw and active row counts plus safe error types. It never displays
+database rows, identifiers, provider error messages, or secret values.
+
 Developer-only node creation is enabled explicitly:
 
 ```bash

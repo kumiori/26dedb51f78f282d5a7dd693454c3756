@@ -63,6 +63,24 @@ def test_m1_initial_state_is_sparse(monkeypatch) -> None:
         sum('class="takeover-footer"' in block.value for block in app.main.markdown)
         == 1
     )
+    uncertainty = next(
+        block.value
+        for block in app.main.markdown
+        if 'class="uncertainty-state"' in block.value
+    )
+    assert uncertainty.index("That is part of the current state.") < uncertainty.index(
+        'class="application-file-action"'
+    )
+    assert "OPEN APPLICATION FILE" in uncertainty
+    assert (
+        'href="https://useless-azure-newt.myfilebase.com/ipfs/'
+        'QmPfo4qhhGcWqfUvj8gFc3fMHuCcVpT9S4NNGwF4snSvt6"' in uncertainty
+    )
+    assert uncertainty.count("<svg") == 1
+    assert 'target="_blank"' in uncertainty
+    assert "clip-path:polygon(14% 8%,100% 0,86% 92%,0 100%)" in CSS
+    assert "background:#ff4b16" in CSS
+    assert "transform:rotate(-3deg)" in CSS
 
 
 def test_main_graph_uses_only_registry_topology(monkeypatch) -> None:
@@ -75,6 +93,17 @@ def test_main_graph_uses_only_registry_topology(monkeypatch) -> None:
         "GRAPH SOURCE · DATABASE / GENERATED · 0 NODES · 0 RELATIONS" in item.value
         for item in app.caption
     )
+    sidebar = " ".join(
+        [
+            *(item.value for item in app.sidebar.markdown),
+            *(item.value for item in app.sidebar.caption),
+            *(item.value for item in app.sidebar.info),
+        ]
+    )
+    assert "DATABASE STATUS" in sidebar
+    assert "EMPTY" in sidebar
+    assert "PROVISIONAL" in sidebar
+    assert "0 NODES · 0 RELATIONS" in sidebar
 
 
 def test_start_here_branches_before_identity_and_asks_only_mode_specific_fields(
@@ -338,6 +367,11 @@ def test_seeded_node_population_editor_requires_its_url_capability(
     app.run(timeout=20)
     assert not app.exception
     assert "BIO / NOTE" in {item.label for item in app.text_area}
+    assert any(
+        event["label_key"] == "event_player_entered"
+        and event["target"] == "ave"
+        for event in app.session_state["takeover_event_log"]
+    )
     assert "DROP IMAGE" in {item.label for item in app.get("file_uploader")}
     assert "DROP ONE SAMPLE" in {item.label for item in app.get("file_uploader")}
     assert "PRACTICE" in {item.label for item in app.text_input}
@@ -352,6 +386,54 @@ def test_seeded_node_population_editor_requires_its_url_capability(
         block.value for block in app.markdown
     )
     assert "BIO / NOTE" not in {item.label for item in app.text_area}
+
+
+def test_capability_alone_reopens_owned_node_after_ready_transition() -> None:
+    app = AppTest.from_file("app.py")
+    populate_test_registry(app)
+    app.secrets = {"takeover_identities": {"ave": {"capability": "ave-private-capability"}}}
+    app.query_params["c"] = "ave-private-capability"
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert "INHABIT NODE / REGISTER" in {button.label for button in app.button}
+    assert {item.label for item in app.text_input} >= {
+        "AVATAR / IMAGE URL",
+        "PRACTICE",
+        "ONE REPRESENTATIVE SAMPLE / URL",
+    }
+    assert "BIO / NOTE" in {item.label for item in app.text_area}
+
+    app = AppTest.from_file("app.py")
+    populate_test_registry(app)
+    app.session_state["takeover_entities"][1]["metadata"]["node_stage"] = "ready"
+    app.secrets = {"takeover_identities": {"ave": {"capability": "ave-private-capability"}}}
+    app.query_params["c"] = "ave-private-capability"
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert "INHABIT NODE / REGISTER" in {button.label for button in app.button}
+
+
+def test_invalid_and_duplicate_capabilities_fail_visibly() -> None:
+    app = AppTest.from_file("app.py")
+    populate_test_registry(app)
+    app.query_params["c"] = "invalid-capability"
+    app.run(timeout=20)
+    assert any("CAPABILITY INVALID OR EXPIRED" in item.value for item in app.error)
+
+    app = AppTest.from_file("app.py")
+    populate_test_registry(app)
+    app.secrets = {
+        "takeover_identities": {
+            "ave": {"capability": "duplicated-capability"},
+            "kumiori": {"capability": "duplicated-capability"},
+        }
+    }
+    app.query_params["c"] = "duplicated-capability"
+    app.run(timeout=20)
+    assert any("CAPABILITY OWNERSHIP CONFLICT" in item.value for item in app.error)
+    assert "INHABIT NODE / REGISTER" not in {button.label for button in app.button}
 
 
 def test_tooltips_keep_readable_contrast_and_fit() -> None:

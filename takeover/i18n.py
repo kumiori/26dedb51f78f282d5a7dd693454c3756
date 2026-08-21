@@ -176,6 +176,7 @@ UTTERANCES = (
     u("conditional", "CONDITIONAL", 12, "TINGIMUSLIK", "УСЛОВНО"),
     u("unresolved", "UNRESOLVED", 12, "LAHENDAMATA", "НЕ ОПРЕДЕЛЕНО"),
     u("uncertainty_statement", "We do not know whether this will happen. That is part of the current state.", 22, "Me ei tea, kas see juhtub. See on osa praegusest olekust.", "Мы не знаем, произойдёт ли это. Это часть текущего состояния."),
+    u("open_application_file", "OPEN APPLICATION FILE", 28, "AVA TAOTLUSE FAIL", "ОТКРЫТЬ ФАЙЛ ЗАЯВКИ"),
     u("state_of_art", "STATE OF THE ART", 28, "STATE OF THE ART", "STATE OF THE ART"),
     u("state_of_art_intro", "Who is here, what they bring, how they connect.", 18, "Kes on siin, mida nad toovad, kuidas nad ühenduvad.", "Кто здесь, что они привносят, как они связаны."),
     u("connectivity", "CONNECTIVITY", 10, "ÜHENDATUS", "СВЯЗНОСТЬ"),

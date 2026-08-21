@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import date, datetime
+from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
 from typing import Any
 
@@ -160,9 +160,10 @@ def build_bucket_figure(objects: list[dict[str, Any]]) -> go.Figure:
 
 def build_combined_resources_figure(
     trajectory: dict[str, Any], resources: dict[str, Any], objects: list[dict[str, Any]],
-    *, volume_scale: float = 1.0,
+    *, volume_scale: float = 1.0, now: datetime | None = None,
 ) -> go.Figure:
     """Combine resources and encrypted volume on one explicit scaled axis."""
+    observed_now = (now or datetime.now(timezone.utc)).astimezone(timezone.utc)
     allocations = resources["allocated_resources"]["observations"]
     events = sorted(
         (item for item in trajectory["primitives"] if item.get("date")),
@@ -192,7 +193,12 @@ def build_combined_resources_figure(
             hovertemplate="%{x|%d %b %Y}<br>%{customdata[0]} · %{customdata[1]}<br>INTENTION · NO ALLOCATED VALUE<extra></extra>",
         ))
 
-    storage = storage_timeline(objects)
+    storage = storage_timeline(objects, now=observed_now)
+    beginning = min(
+        datetime.fromisoformat(value).replace(tzinfo=timezone.utc)
+        for value in resource_dates
+    )
+    horizon = observed_now + timedelta(days=5)
     scale_bytes = max(int(storage["actual_bytes"][-1]), 1)
     physical_megabytes = [value / 1024 / 1024 for value in storage["actual_bytes"]]
     scale = max(float(volume_scale), 0.01)
@@ -212,7 +218,8 @@ def build_combined_resources_figure(
         paper_bgcolor="#f5f2ed", plot_bgcolor="#f5f2ed",
         title={"text": "Resources / shared scale", "x": 0, "font": {"family": "Courier New, monospace", "size": 19, "color": "#111"}},
         xaxis={
-            "title": {"text": "CALENDAR DATE", "font": {"color": "#111"}},
+            "title": {"text": "BEGINNING → NOW + 5 DAYS", "font": {"color": "#111"}},
+            "range": [beginning, horizon],
             "tickfont": {"color": "#111"}, "showgrid": False, "zeroline": False,
         },
         yaxis={

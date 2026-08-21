@@ -1,4 +1,4 @@
-from datetime import date
+from datetime import date, datetime, timezone
 from pathlib import Path
 
 from takeover.resources import application_date, build_bucket_figure, build_combined_resources_figure, build_resources_figure, load_resources
@@ -56,6 +56,7 @@ def test_combined_plot_uses_calendar_dates_and_one_scaled_axis() -> None:
         trajectory,
         resources,
         [{"Size": 1024, "LastModified": "2026-08-19T10:00:00+00:00"}],
+        now=datetime(2026, 8, 21, 12, tzinfo=timezone.utc),
     )
     assert [trace.name for trace in figure.data] == [
         "BUCKET OF DOUGH · €0", "INTENTION", "BUCKET OF GOLD · V̂"
@@ -66,7 +67,11 @@ def test_combined_plot_uses_calendar_dates_and_one_scaled_axis() -> None:
     assert figure.data[-1].yaxis is None
     assert list(figure.data[-1].y)[-1] == 1.0
     assert figure.data[-1].line.shape == "spline"
-    assert figure.layout.xaxis.title.text == "CALENDAR DATE"
+    assert figure.layout.xaxis.title.text == "BEGINNING → NOW + 5 DAYS"
+    assert list(figure.layout.xaxis.range) == [
+        datetime(2026, 8, 17, tzinfo=timezone.utc),
+        datetime(2026, 8, 26, 12, tzinfo=timezone.utc),
+    ]
     assert list(figure.layout.yaxis.ticktext) == ["€0", "V̂ₛ(now)=1"]
     assert "yaxis2" not in figure.layout
 
@@ -75,6 +80,7 @@ def test_combined_plot_uses_calendar_dates_and_one_scaled_axis() -> None:
         resources,
         [{"Size": 1024, "LastModified": "2026-08-19T10:00:00+00:00"}],
         volume_scale=2.5,
+        now=datetime(2026, 8, 21, 12, tzinfo=timezone.utc),
     )
     assert list(scaled.data[-1].y)[-1] == 2.5
     assert list(scaled.layout.yaxis.ticktext)[-1] == "V̂ₛ(now)=2.5"

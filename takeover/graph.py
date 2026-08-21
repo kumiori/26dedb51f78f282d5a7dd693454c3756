@@ -174,7 +174,8 @@ def build_graph_html(
     <style>
       * {{ box-sizing:border-box; }}
       body {{ margin:0; background:transparent; color:#111; font-family:'Courier New',monospace; }}
-      .field {{ position:relative; width:100%; max-width:{width}px; aspect-ratio:{width}/{height}; margin:auto; overflow:hidden; }}
+      .graph-shell {{ width:100%; max-width:{width}px; margin:auto; }}
+      .field {{ position:relative; width:100%; aspect-ratio:{width}/{height}; overflow:hidden; }}
       .relation-link {{ position:absolute; z-index:2; height:3.05%; transform:translateY(-50%) rotate(var(--angle)); transform-origin:0 50%; cursor:pointer; }}
       .relation-stroke {{ position:absolute; left:0; right:0; top:calc(50% - 1px); height:2px; background:#111; opacity:.68; transition:height .16s ease,top .16s ease,opacity .16s ease; }}
       .relation-marker {{ position:absolute; left:50%; top:50%; width:7px; height:7px; transform:translate(-50%,-50%); border:1px solid #111; border-radius:50%; background:#f5f2ed; transition:width .16s ease,height .16s ease,background .16s ease; }}
@@ -206,19 +207,21 @@ def build_graph_html(
       .unknown {{ width:3.26%; opacity:.10; }}
       .unknown .orb {{ width:86.67%; }}
       .unknown:nth-of-type(even) .orb {{ width:60%; }}
-      .stats {{ position:absolute; z-index:5; right:130px; bottom:12px; width:235px; padding-top:8px; border-top:1px solid #111; color:#111; text-decoration:none; font-size:8px; letter-spacing:.09em; line-height:1.55; text-transform:uppercase; }}
-      .stats h2 {{ margin:0 0 5px; font-size:12px; letter-spacing:.14em; }}
+      .stats {{ position:relative; z-index:5; display:block; width:min(100%,470px); margin:18px 0 0 auto; padding:12px 0 4px; border-top:2px solid #111; color:#111; text-decoration:none; font-size:9px; letter-spacing:.09em; line-height:1.6; text-transform:uppercase; }}
+      .stats h2 {{ margin:0 0 8px; font-size:13px; letter-spacing:.14em; }}
       .stats div {{ display:grid; grid-template-columns:1fr 1fr; gap:0 .7rem; }}
       .stats b {{ font-weight:500; }}
-      .stats small {{ display:block; margin-top:6px; color:#777168; font-size:7px; letter-spacing:.05em; }}
+      .stats small {{ display:block; margin-top:8px; color:#777168; font-size:8px; letter-spacing:.05em; }}
       .stats:hover h2,.stats:focus h2 {{ color:#315f78; }}
       @keyframes wobble {{ from {{ transform:translate(-50%,-50%) rotate(-1.2deg) translateY(-3px); }} to {{ transform:translate(-50%,-50%) rotate(1.2deg) translateY(4px); }} }}
       @media (prefers-reduced-motion:reduce) {{ .node {{ animation:none; }} }}
     </style>
-    <div class="field" data-registry='{html.escape(payload)}'>
-      {''.join(lines)}
-      <a class="hub" href="?view=network&amp;door=access" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
-      {''.join(nodes)}
+    <div class="graph-shell">
+      <div class="field" data-registry='{html.escape(payload)}'>
+        {''.join(lines)}
+        <a class="hub" href="?view=network&amp;door=access" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
+        {''.join(nodes)}
+      </div>
       <a class="stats" href="?view=network&amp;state=art" aria-label="Inspect {html.escape(state_label)}">
         <h2>{html.escape(state_label)} ↗</h2><div>
           <span><b>{state_counts['active']}</b> {html.escape(active_label)}</span>

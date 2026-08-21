@@ -43,6 +43,7 @@ class Relation:
     type: str
     stage: str = "application"
     status: str = "active"
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

@@ -13,6 +13,7 @@ from typing import Any
 import yaml
 
 from .analytics import normalise_activation
+from .models import Entity
 
 
 def person_id_from_initial_condition(initial_condition: dict[str, str]) -> str:
@@ -79,6 +80,64 @@ class PlayerPopulation:
             raise ValueError("Person ID does not match its initial condition.")
         if self.player_id.startswith("player_") and not self.initial_condition:
             raise ValueError("Generated player IDs require their initial condition.")
+
+
+def upsert_player_verified(store: Any, payload: PlayerPopulation) -> dict[str, Any]:
+    """Upsert one player and reject any incomplete or mismatched adapter read-back."""
+    row = store.upsert_player(payload)
+    checks = {
+        "Person ID": row.get("player_id") == payload.player_id,
+        "Image URL": row.get("image_url") == payload.image_url,
+        "Bio": row.get("bio") == payload.bio,
+        "Practice": row.get("practice") == payload.practice,
+        "Sample URL": row.get("sample_url") == payload.sample_url,
+        "Project Stage": row.get("project_stage") == payload.project_stage,
+        "Status": row.get("status") == payload.status,
+        "Node Stage": (row.get("metadata") or {}).get("node_stage") == payload.node_stage,
+        "Unique Person ID": row.get("row_count") == 1,
+    }
+    failures = [label for label, passed in checks.items() if not passed]
+    if failures:
+        raise ValueError("Player read-back mismatch: " + ", ".join(failures))
+    return row
+
+
+def upsert_inhabited_node(
+    store: Any,
+    entity: Entity,
+    *,
+    image_url: str,
+    bio: str,
+    practice: str,
+    sample_url: str,
+    crop: dict[str, float] | None = None,
+) -> dict[str, Any]:
+    """Persist an inhabited graph entity through the production player contract."""
+    metadata = dict(entity.metadata)
+    for projected_key in (
+        "avatar", "bio", "practice", "sample_url", "registry_status", "visibility",
+    ):
+        metadata.pop(projected_key, None)
+    if crop:
+        metadata["avatar_crop"] = dict(crop)
+    complete = bool(image_url.strip() and bio.strip() and practice.strip() and sample_url.strip())
+    payload = PlayerPopulation(
+        player_id=entity.id,
+        name=entity.title,
+        label=entity.label,
+        image_url=image_url.strip(),
+        bio=bio.strip(),
+        practice=practice.strip(),
+        sample_url=sample_url.strip(),
+        metadata=metadata,
+        initial_condition=dict(entity.metadata.get("initial_condition") or {}),
+        project_stage=entity.stage,
+        node_stage="ready" if complete else "node_population",
+        status=str(entity.metadata.get("registry_status") or "active"),
+        network_state=entity.status,
+        visibility=str(entity.metadata.get("visibility") or "public"),
+    )
+    return upsert_player_verified(store, payload)
 
 
 def load_population_registry(path: str | Path) -> dict[str, Any]:

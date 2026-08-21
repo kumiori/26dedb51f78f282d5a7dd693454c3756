@@ -2,6 +2,8 @@
 
 ## Unreleased
 
+- Changed the invite generator into a session-only, copy-out tool: it no longer modifies a secrets file and now generates a separate `?c=` capability for editing the participant's own profile.
+- Added read-only database diagnostics in the main sidebar and a dedicated test page that distinguishes connected-empty registries from provider errors.
 - Added a distinct `commission_application_visit` analytics event for the `?a=application` invitation route without treating the route as visitor authentication.
 - Changed new Fotografiska encrypted-upload object keys from `private/…` to the application-owned `public/…` bucket prefix; encryption and registry visibility are unchanged.
 

@@ -18,6 +18,7 @@ import streamlit as st
 from takeover.analytics import emit_google_event, emit_invitation_events, normalise_activation
 from takeover.browser_encrypt import encrypted_drop
 from takeover.call import load_call
+from takeover.database_status import RegistryDiagnostics, inspect_registry
 from takeover.graph import build_graph_html
 from takeover.events import list_events, record_event, record_event_once
 from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
@@ -27,8 +28,9 @@ from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
+from takeover.player_invitations import CapabilityResolution
 from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, node_stage
-from takeover.node_population import load_population_registry, resolve_population_participant
+from takeover.node_population import PlayerPopulation, load_population_registry, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
 from takeover.registry import SessionRegistry, with_rc0_seeds
 from takeover.resource_field import load_resource_field, resource_rows
 from takeover.resources import build_combined_resources_figure, load_resources
@@ -46,6 +48,7 @@ ENCRYPTED_REGISTRY = Path(os.getenv("TAKEOVER_ENCRYPTED_REGISTRY", ROOT / "data"
 NODE_POPULATION = load_population_registry(ROOT / "config" / "takeover_node_population.yaml")
 NODE_REGISTRY = Path(os.getenv("TAKEOVER_NODE_REGISTRY", ROOT / "data" / "inhabited_nodes_v1.json"))
 NODE_MEDIA = Path(os.getenv("TAKEOVER_NODE_MEDIA", ROOT / "data" / "inhabited_node_media"))
+APPLICATION_FILE_URL = "https://useless-azure-newt.myfilebase.com/ipfs/QmPfo4qhhGcWqfUvj8gFc3fMHuCcVpT9S4NNGwF4snSvt6"
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -475,7 +478,7 @@ def _nodes_for_render(store: FileNodeStore) -> dict[str, dict]:
     return nodes
 
 
-def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
+def render_node_editor(entity: Entity, store: FileNodeStore, repo) -> None:
     current = store.get(entity.id) or {}
     node = current.get("node") or {}
     avatar = node.get("avatar") or {}
@@ -484,6 +487,7 @@ def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
     st.markdown("**AVATAR**")
     avatar_upload = st.file_uploader("DROP IMAGE", type=("jpg", "jpeg", "png", "webp"), key=f"node-avatar-{entity.id}")
     st.caption("THE RECTANGULAR ORIGINAL IS PRESERVED. THE CIRCLE IS A RENDERER DECISION.")
+    avatar_url = st.text_input("OR AVATAR IMAGE URL", value=str(avatar.get("url") or entity.source or ""))
     crop_x, crop_y, crop_scale = st.columns(3)
     with crop_x:
         x = st.number_input("CROP X", 0.0, 1.0, float(crop.get("x", .5)), .05)
@@ -491,15 +495,21 @@ def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
         y = st.number_input("CROP Y", 0.0, 1.0, float(crop.get("y", .5)), .05)
     with crop_scale:
         scale = st.number_input("CROP SCALE", 1.0, 4.0, float(crop.get("scale", 1.0)), .1)
-    note = st.text_area("BIO / NOTE", value=str((node.get("text") or {}).get("text") or ""), help="Markdown", max_chars=2000)
+    note = st.text_area("BIO / NOTE", value=str((node.get("text") or {}).get("text") or entity.metadata.get("bio") or ""), help="Markdown", max_chars=2000)
     st.markdown('<div class="node-preview-label">BIO / NOTE · PREVIEW</div>', unsafe_allow_html=True)
     st.markdown(note or "_Your note preview will appear here._")
-    practice = st.text_input("PRACTICE", value=", ".join(node.get("practice") or []), placeholder="photography, cyanotype")
+    projected_practice = entity.metadata.get("practice") or ""
+    if isinstance(projected_practice, list):
+        projected_practice = ", ".join(str(item) for item in projected_practice)
+    practice = st.text_input("PRACTICE", value=", ".join(node.get("practice") or []) or str(projected_practice), placeholder="photography, cyanotype")
     st.markdown("**SAMPLE · OPTIONAL**")
     sample_upload = st.file_uploader("DROP ONE SAMPLE", key=f"node-sample-{entity.id}")
-    sample_reference = st.text_input("OR EXTERNAL LINK / CID", value=str(sample.get("url") or sample.get("cid") or ""))
+    sample_reference = st.text_input("OR EXTERNAL LINK / CID", value=str(sample.get("url") or sample.get("cid") or entity.metadata.get("sample_url") or ""))
     sample_caption = st.text_input("SAMPLE CAPTION", value=str(sample.get("caption") or ""))
-    has_avatar = avatar_upload is not None or bool(avatar.get("path") or avatar.get("url") or avatar.get("cid"))
+    authoritative = callable(getattr(repo, "upsert_player", None))
+    has_avatar = bool(avatar_url.strip()) if authoritative else avatar_upload is not None or bool(avatar.get("path") or avatar.get("url") or avatar.get("cid"))
+    if authoritative:
+        st.caption("NOTION WRITE · USE A PUBLIC IMAGE URL. LOCAL FILE SELECTION IS NOT A DURABLE AVATAR REFERENCE.")
     can_save = has_avatar and bool(note.strip()) and bool(practice.strip())
     save_column, cancel_column = st.columns([2, 1])
     with save_column:
@@ -510,14 +520,14 @@ def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
             st.rerun()
     if save:
         avatar_payload = dict(avatar)
-        if avatar_upload is not None:
+        if avatar_upload is not None and not authoritative:
             avatar_payload = PublicNodeMediaStore(NODE_MEDIA).save_original(
                 node_id=entity.id, filename=avatar_upload.name,
                 content_type=avatar_upload.type or "application/octet-stream", data=avatar_upload.getvalue(),
             )
         avatar_payload["crop"] = {"x": x, "y": y, "scale": scale}
         sample_payload = {**_node_reference(sample_reference), "caption": sample_caption.strip()}
-        if sample_upload is not None:
+        if sample_upload is not None and not authoritative:
             sample_payload = {
                 **PublicNodeMediaStore(NODE_MEDIA).save_sample(
                     node_id=entity.id, filename=sample_upload.name,
@@ -526,16 +536,29 @@ def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
                 "caption": sample_caption.strip(),
             }
         try:
-            record = store.save(
-                node_id=entity.id, avatar=avatar_payload, text=note,
-                practice=practice.split(","), sample=sample_payload,
-                clock=lambda: datetime.now(timezone.utc),
-            )
+            if authoritative:
+                record = upsert_inhabited_node(
+                    repo, entity, image_url=avatar_url, bio=note, practice=practice,
+                    sample_url=str(sample_payload.get("url") or ""),
+                    crop={"x": x, "y": y, "scale": scale},
+                )
+                st.session_state[f"node-upsert-result-{entity.id}"] = record
+            else:
+                record = store.save(
+                    node_id=entity.id, avatar=avatar_payload, text=note,
+                    practice=practice.split(","), sample=sample_payload,
+                    clock=lambda: datetime.now(timezone.utc),
+                )
         except ValueError as exc:
             st.error(str(exc).upper())
         else:
-            record_event(st.session_state, "event_node_inhabited", entity.id, record["stage"])
-            st.rerun()
+            persisted_stage = str(record.get("stage") or record.get("metadata", {}).get("node_stage") or "node_population")
+            record_event(st.session_state, "event_node_inhabited", entity.id, persisted_stage)
+            if authoritative:
+                st.success("NODE UPSERTED · NOTION READ-BACK RECEIVED")
+                st.json(record)
+            else:
+                st.rerun()
 
 
 def render_ready_node(entity: Entity, record: dict | None) -> None:
@@ -565,7 +588,7 @@ def render_ready_node(entity: Entity, record: dict | None) -> None:
 
 
 @st.dialog(t("node"), width="large")
-def node_dialog(entity: Entity, participant_id: str | None) -> None:
+def node_dialog(entity: Entity, participant_id: str | None, repo) -> None:
     st.markdown(f'<div class="node-kind">{html.escape(entity_type_label(entity.type))}</div>', unsafe_allow_html=True)
     st.header(entity.title)
     stage = node_stage(entity)
@@ -579,7 +602,7 @@ def node_dialog(entity: Entity, participant_id: str | None) -> None:
     if stage == "node_population":
         if participant_id == entity.id and _node_write_participant(participant_id) == entity.id:
             st.write("This node is waiting for you.")
-            render_node_editor(entity, store)
+            render_node_editor(entity, store, repo)
         elif participant_id == entity.id:
             st.write("This node is waiting for you.")
             st.caption("WRITE CAPABILITY REQUIRED TO INHABIT THIS NODE.")
@@ -597,6 +620,123 @@ def node_dialog(entity: Entity, participant_id: str | None) -> None:
         if entity.label:
             st.write(entity.label)
     st.caption(f'{t("registry_id")} · {entity.id}')
+
+
+@st.dialog("INHABIT NODE", width="large")
+def owned_node_dialog(repo, player: dict) -> None:
+    code = str((player.get("metadata") or {}).get("invitation_code") or "")
+    draft_key = f"node-population-draft-{player['player_id']}"
+    draft = dict(st.session_state.get(draft_key) or {})
+    st.markdown(f'<div class="node-kind">INVITATION · {html.escape(code)}</div>', unsafe_allow_html=True)
+    st.header(str(player.get("name") or "INVITED PLAYER"))
+    st.write(
+        "You have been invited into an existing network. Add only what is useful now; "
+        "the node can continue to change after it is inhabited."
+    )
+    with st.form(f"invited-node-{player['player_id']}"):
+        image_url = st.text_input("AVATAR / IMAGE URL", value=str(draft.get("image_url") or player.get("image_url") or ""))
+        bio = st.text_area("BIO / NOTE", value=str(draft.get("bio") or player.get("bio") or ""))
+        practice = st.text_input("PRACTICE", value=str(draft.get("practice") or player.get("practice") or ""))
+        sample_url = st.text_input("ONE REPRESENTATIVE SAMPLE / URL", value=str(draft.get("sample_url") or player.get("sample_url") or ""))
+        st.caption("AVATAR, BIO / NOTE, PRACTICE AND ONE SAMPLE ARE REQUIRED TO COMPLETE THE NODE.")
+        submitted = st.form_submit_button(
+            "INHABIT NODE / REGISTER",
+            type="primary",
+            width="stretch",
+            disabled=not (
+                image_url.strip() and bio.strip() and practice.strip() and sample_url.strip()
+            ),
+        )
+    if submitted:
+        st.session_state[draft_key] = {
+            "image_url": image_url,
+            "bio": bio,
+            "practice": practice,
+            "sample_url": sample_url,
+        }
+        record_event(st.session_state, "event_node_edited", str(player["player_id"]))
+        try:
+            metadata = dict(player.get("metadata") or {})
+            metadata["invitation_registered_at"] = datetime.now(timezone.utc).isoformat()
+            result = upsert_player_verified(repo, PlayerPopulation(
+                player_id=str(player["player_id"]),
+                name=str(player["name"]),
+                label=str(player.get("label") or "Person • Alien"),
+                image_url=image_url.strip(),
+                bio=bio.strip(),
+                practice=practice.strip(),
+                sample_url=sample_url.strip(),
+                metadata=metadata,
+                initial_condition=dict(player.get("initial_condition") or {}),
+                project_stage="application",
+                node_stage="ready",
+                status="active",
+                network_state="active",
+                visibility="public",
+            ))
+            record_event(st.session_state, "event_save_succeeded", str(player["player_id"]), "read-back verified")
+            st.session_state.pop(draft_key, None)
+            st.session_state["completed-node-population"] = {
+                "player_id": player["player_id"],
+                "name": player["name"],
+                "code": code,
+                "result": result,
+            }
+            st.rerun()
+        except Exception as exc:
+            record_event(st.session_state, "event_save_failed", str(player["player_id"]), type(exc).__name__)
+            st.error(f"REGISTRATION FAILED · {type(exc).__name__}: {exc}")
+
+
+def resolve_capability_player(repo) -> CapabilityResolution:
+    capability = str(st.query_params.get("c", "") or "").strip()
+    if not capability:
+        return CapabilityResolution("missing")
+    resolver = getattr(repo, "resolve_player_capability", None)
+    if callable(resolver):
+        resolution = resolver(capability)
+        if resolution.status != "invalid":
+            return resolution
+    try:
+        identities = {
+            str(node_id): dict(config)
+            for node_id, config in st.secrets["takeover_identities"].items()
+        }
+    except (KeyError, TypeError, AttributeError):
+        return CapabilityResolution("invalid")
+    matches = [
+        node_id
+        for node_id, config in identities.items()
+        if str(config.get("capability") or "")
+        and secrets.compare_digest(str(config["capability"]), capability)
+    ]
+    if len(matches) != 1:
+        return CapabilityResolution(
+            "duplicate" if matches else "invalid", matches=len(matches)
+        )
+    reader = getattr(repo, "read_player", None)
+    if callable(reader):
+        player = reader(matches[0])
+        return (
+            CapabilityResolution("resolved", player=player, matches=1)
+            if player
+            else CapabilityResolution("invalid")
+        )
+    entity = next((item for item in repo.list_entities() if item.id == matches[0]), None)
+    if entity is None:
+        return CapabilityResolution("invalid")
+    player = {
+        "player_id": entity.id,
+        "name": entity.title,
+        "label": entity.label,
+        "image_url": entity.source,
+        "bio": str(entity.metadata.get("bio") or ""),
+        "practice": str(entity.metadata.get("practice") or ""),
+        "sample_url": str(entity.metadata.get("sample_url") or ""),
+        "metadata": dict(entity.metadata),
+        "initial_condition": dict(entity.metadata.get("initial_condition") or {}),
+    }
+    return CapabilityResolution("resolved", player=player, matches=1)
 
 
 @st.dialog(t("connection"), width="large")
@@ -774,7 +914,7 @@ def render_sidebar_resource_datasets() -> None:
         st.dataframe(trajectory_rows, width="stretch", hide_index=True)
 
 
-def render_sidebar(current: str, mode: str) -> None:
+def render_sidebar(current: str, mode: str, database: RegistryDiagnostics) -> None:
     with st.sidebar:
         st.title(t("project_name"))
         st.caption(t("project_navigation"))
@@ -797,6 +937,15 @@ def render_sidebar(current: str, mode: str) -> None:
         st.divider()
         st.caption(f'{t("registry")} · {mode.upper()}')
         st.caption(t("development_interface"))
+        st.markdown('<div class="event-log-title">DATABASE STATUS</div>', unsafe_allow_html=True)
+        st.caption(
+            f"{database.status.upper()} · {database.authority.upper()} · "
+            f"{database.entity_count} NODES · {database.relation_count} RELATIONS"
+        )
+        if database.error_type:
+            st.warning(f"DATABASE READ FAILED · {database.error_type}")
+        elif database.status == "empty":
+            st.info("NO ACTIVE GRAPH ROWS RETURNED")
         if current == "network":
             render_sidebar_call_information()
         elif current == "timeline":
@@ -816,8 +965,8 @@ def render_sidebar(current: str, mode: str) -> None:
             st.markdown(f'<div class="event-log-row"><time>{occurred} UTC</time><strong>{html.escape(label)}</strong>{f"<span>{suffix}</span>" if suffix else ""}</div>', unsafe_allow_html=True)
 
 
-def render_network(repo, mode: str) -> None:
-    entities, relations = repo.list_entities(), repo.list_relations()
+def render_network(repo, mode: str, database: RegistryDiagnostics) -> None:
+    entities, relations = list(database.entities), list(database.relations)
     process = "".join(
         f'<p>{html.escape(t(key))}</p>'
         for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
@@ -854,7 +1003,12 @@ def render_network(repo, mode: str) -> None:
         )
         st.markdown(
             f'<section class="uncertainty-state"><small>{t("current_state")}</small>{uncertainty_rows}'
-            f'<p>{t("uncertainty_statement")}</p></section>',
+            f'<p>{t("uncertainty_statement")}</p>'
+            f'<a class="application-file-action" href="{APPLICATION_FILE_URL}" target="_blank" '
+            f'rel="noopener noreferrer" aria-label="{html.escape(t("open_application_file"))}">'
+            '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 2h8l5 5v15H6V2Zm8 2.7V8h3.3L14 4.7ZM9 12v2h4.6l-2.3 2.3 1.4 1.4L17.4 13l-4.7-4.7-1.4 1.4 2.3 2.3H9Z"/></svg>'
+            f'<span><small>APPLICATION · PDF</small><strong>{html.escape(t("open_application_file"))}</strong></span>'
+            '<b aria-hidden="true">↗</b></a></section>',
             unsafe_allow_html=True,
         )
         st.markdown("</div>", unsafe_allow_html=True)
@@ -921,7 +1075,7 @@ def render_network(repo, mode: str) -> None:
     selected = next((item for item in entities if item.id == requested), None)
     if selected:
         record_event_once(st.session_state, f"node-open-{selected.id}", "event_node_opened", selected.id)
-        node_dialog(selected, current_participant_id)
+        node_dialog(selected, current_participant_id, repo)
     requested_relation = str(st.query_params.get("relation", "") or "")
     selected_relation = next((item for item in relations if item.id == requested_relation), None)
     if selected_relation:
@@ -1177,15 +1331,44 @@ def render_voices() -> None:
 
 
 repo, registry_mode = registry()
+database_status = inspect_registry(repo, registry_mode)
+capability_resolution = resolve_capability_player(repo)
+capability_player = capability_resolution.player
+if capability_player is not None:
+    record_event_once(
+        st.session_state,
+        f"capability-player-entered-{capability_player['player_id']}",
+        "event_player_entered",
+        str(capability_player["player_id"]),
+        str((capability_player.get("metadata") or {}).get("node_stage") or ""),
+    )
+if capability_resolution.status == "invalid":
+    st.error("CAPABILITY INVALID OR EXPIRED · NO PLAYER RESOLVED")
+elif capability_resolution.status == "duplicate":
+    st.error(
+        "CAPABILITY OWNERSHIP CONFLICT · "
+        f"{capability_resolution.matches} PLAYERS RESOLVED · EDITING DISABLED"
+    )
+completed_population = st.session_state.get("completed-node-population")
+if completed_population:
+    st.success(f"NODE READY · {completed_population['name']} · NETWORK UPDATED")
+    st.markdown("**NEXT / PRIVATE UPLOAD**")
+    code = str(completed_population.get("code") or "").strip()
+    code_instruction = f" with recognition code **{code}**" if code else ""
+    st.write(
+        "Contact the person who invited you"
+        f"{code_instruction} to receive the separate private upload route. "
+        "That route encrypts material before storage; do not place private files in public URL fields."
+    )
 current_view = st.session_state.get("takeover_view") or str(st.query_params.get("view", "network"))
 if str(st.query_params.get("k", "") or "").strip():
     current_view = "network"
 if current_view not in {"network", "timeline", "necessities", "resources", "order-art", "voices"}:
     current_view = "network"
 render_nav(current_view)
-render_sidebar(current_view, registry_mode)
+render_sidebar(current_view, registry_mode, database_status)
 if current_view == "network":
-    render_network(repo, registry_mode)
+    render_network(repo, registry_mode, database_status)
 elif current_view == "timeline":
     render_timeline()
 elif current_view == "necessities":
@@ -1196,3 +1379,9 @@ elif current_view == "order-art":
     render_order_art()
 else:
     render_voices()
+explicit_dialog = any(
+    str(st.query_params.get(key, "") or "").strip()
+    for key in ("node", "relation", "state", "door")
+)
+if capability_player is not None and not explicit_dialog:
+    owned_node_dialog(repo, capability_player)

@@ -19,6 +19,16 @@ def test_empty_graph_exposes_only_start_hub() -> None:
     assert build_graph_html([], []) == html
 
 
+def test_state_summary_has_a_dedicated_band_outside_the_graph_field() -> None:
+    html = build_graph_html([Entity("ave", "person", "Ave")], [])
+
+    assert 'class="graph-shell"' in html
+    field_end = html.index("</div>", html.index('class="field"'))
+    assert field_end < html.index('class="stats"')
+    assert ".stats { position:relative" in html
+    assert ".stats { position:absolute" not in html
+
+
 def test_generated_layout_is_stable_and_requires_no_stored_coordinates() -> None:
     entities = [Entity("b", "person", "B"), Entity("a", "person", "A"), Entity("c", "person", "C")]
     first = generated_positions(entities)
