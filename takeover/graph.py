@@ -6,6 +6,7 @@ import html
 import json
 from math import atan2, degrees, hypot
 from urllib.parse import quote
+from urllib.parse import urlparse
 
 from .models import Entity, Relation, entity_type_label
 
@@ -45,6 +46,8 @@ def build_graph_html(
     latent_known_label: str = "LATENT KNOWN",
     latent_private_label: str = "LATENT PRIVATE",
     unknown_label: str = "UNKNOWN",
+    editable_node_id: str | None = None,
+    write_capability: str = "",
 ) -> str:
     width, height = 920, 590
     # Stable normalized graph coordinates. Topology and relative placement do
@@ -107,15 +110,37 @@ def build_graph_html(
                 label_parts.insert(0, entity_type_label(entity.type))
         context = " · ".join(label_parts) if label_parts else entity_type_label(entity.type)
         style = f'left:{100 * x / width:.2f}%;top:{100 * y / height:.2f}%;--delay:-{index * .37:.2f}s;--depth:{depth}'
-        if entity.status == "active":
+        avatar = entity.metadata.get("avatar") if isinstance(entity.metadata.get("avatar"), dict) else {}
+        avatar_url = str(avatar.get("url") or "")
+        parsed_avatar = urlparse(avatar_url)
+        data_image = avatar_url.startswith("data:image/")
+        avatar_ready = entity.metadata.get("node_stage") == "ready" and (data_image or (parsed_avatar.scheme in {"http", "https"} and bool(parsed_avatar.netloc)))
+        crop = avatar.get("crop") if isinstance(avatar.get("crop"), dict) else {}
+        crop_x = max(0.0, min(1.0, float(crop.get("x", .5))))
+        crop_y = max(0.0, min(1.0, float(crop.get("y", .5))))
+        crop_scale = max(1.0, min(4.0, float(crop.get("scale", 1.0))))
+        orb_class = "orb inhabited-node-avatar" if avatar_ready else "orb"
+        orb_style = (
+            f' style="background-image:url({html.escape(json.dumps(avatar_url))});background-position:{crop_x * 100:.2f}% {crop_y * 100:.2f}%;background-size:{crop_scale * 100:.2f}%"'
+            if avatar_ready else ""
+        )
+        if entity.status == "active" or entity.id == editable_node_id:
             display_name = str(entity.metadata.get("display_name") or "").strip()
             if display_name:
                 context = f"{display_name} · {context}"
+            practices = entity.metadata.get("practice") or []
+            if entity.metadata.get("node_stage") == "ready" and practices:
+                context = " · ".join(str(item) for item in practices[:3]) + " · ready"
+            elif entity.metadata.get("node_stage"):
+                context = f'{context} · {entity.metadata["node_stage"]}'
             query = quote(entity.id, safe="")
+            context_query = f"&amp;a={quote(editable_node_id, safe='')}" if editable_node_id else ""
+            if entity.id == editable_node_id and write_capability:
+                context_query += f"&amp;c={quote(write_capability, safe='')}"
             nodes.append(
-                f'<a href="?view=network&amp;node={query}" class="node active {kind}" '
+                f'<a href="?view=network&amp;node={query}{context_query}" class="node active {"context-node " if entity.id == editable_node_id else ""}{kind}" '
                 f'style="{style}" aria-label="Inspect {label}">'
-                f'<span class="orb"></span><strong>{label}<i> ↗</i></strong><small>{html.escape(context)}</small></a>'
+                f'<span class="{orb_class}"{orb_style}></span><strong>{label}<i> ↗</i></strong><small>{html.escape(context)}</small></a>'
             )
         else:
             visible_label = label if entity.status == "latent_known" else ""
@@ -157,6 +182,7 @@ def build_graph_html(
       .node {{ position:absolute; z-index:3; transform:translate(-50%,-50%); width:15%; color:#111; text-decoration:none; text-align:center;
         animation:wobble 6s ease-in-out infinite alternate; animation-delay:var(--delay); }}
       .orb {{ display:block; width:63.77%; aspect-ratio:1; margin:0 auto 9px; border-radius:50%; border:1px solid #45413d; background:#151515; box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); transition:transform .16s ease,box-shadow .16s ease; }}
+      .inhabited-node-avatar {{ background-repeat:no-repeat; background-color:#151515; }}
       .node strong,.node small {{ display:block; }}
       .node strong {{ font-size:12px; letter-spacing:.08em; text-transform:uppercase; }}
       .node small {{ margin-top:3px; font-size:9px; color:#64615e; }}

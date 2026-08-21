@@ -26,16 +26,16 @@ NECESSITY_ROWS = (
 # contribution flow opens. Depth is semantic: 0 foreground, 1 latent known,
 # 2 latent private, 3 unknown.
 SEED_ENTITIES = (
-    Entity("kumiori", "person", "KUMIORI", "Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0}),
-    Entity("ave", "person", "Ave", "Person • Alien / artist / application", metadata={"depth": 0}),
-    Entity("mai_brit", "person", "Mai-Brit", "Person • Alien / voice / application", metadata={"depth": 0}),
-    Entity("kenneerik", "person", "Kenn-Eerik", "Person • Alien / sound / application", metadata={"depth": 0}),
+    Entity("kumiori", "person", "kumiori", "Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0, "node_stage": "node_population"}),
+    Entity("ave", "person", "Ave", "Person • Alien / artist / application", metadata={"depth": 0, "node_stage": "node_population"}),
+    Entity("mai_brit", "person", "Mai-Brit", "Person • Alien / voice / application", metadata={"depth": 0, "node_stage": "node_population"}),
+    Entity("kenneerik", "person", "Kenn-Eerik", "Person • Alien / sound / application", metadata={"depth": 0, "node_stage": "node_population"}),
 )
 PRESEED_ENTITIES = (
-    Entity("graziano", "person", "Graziano", "Person • Alien / potential / application", status="latent_known", metadata={"depth": 1}),
-    Entity("michela", "person", "Michela", status="latent_private", metadata={"internal_name": "Michela", "depth": 2}),
-    Entity("latent_01", "person", "latent_01", status="unknown", metadata={"depth": 3}),
-    Entity("latent_02", "person", "latent_02", status="unknown", metadata={"depth": 3}),
+    Entity("graziano", "person", "Graziano", "Person • Alien / potential / application", status="latent_known", metadata={"depth": 1, "node_stage": "node_population", "conceptually_active": True}),
+    Entity("michela", "person", "Michela", status="latent_private", metadata={"internal_name": "Michela", "depth": 2, "node_stage": "invited"}),
+    Entity("latent_01", "person", "latent_01", status="unknown", metadata={"depth": 3, "node_stage": "latent"}),
+    Entity("latent_02", "person", "latent_02", status="unknown", metadata={"depth": 3, "node_stage": "latent"}),
 )
 SEED_RELATIONS = (
     Relation("seed-kumiori-ave", "kumiori", "ave", "collaborates_with"),

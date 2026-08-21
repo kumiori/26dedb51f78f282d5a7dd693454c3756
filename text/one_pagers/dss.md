@@ -46,7 +46,7 @@ The emptiness is deliberate. The vacancies are not evidence of incompletion. The
 
 To leave space is also an action.
 
-The initial participants retain their names, their authorship, their differences. Andrés A. León Baldelli / KUMIORI brings the photographic sequence. Ave Palm introduces another photographic language through abandoned architecture, bodies, movement and cyanotype. Mai-Brit Tänava appears first as an image and then speaks from within it. Kenn-Eerik Kannike extends the project through situated sound and live electronic performance.
+The initial participants retain their names, their authorship, their differences. Andrés A. León Baldelli / kumiori brings the photographic sequence. Ave Palm introduces another photographic language through abandoned architecture, bodies, movement and cyanotype. Mai-Brit Tänava appears first as an image and then speaks from within it. Kenn-Eerik Kannike extends the project through situated sound and live electronic performance.
 
 The collective does not require anonymity.
 

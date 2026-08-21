@@ -3,27 +3,35 @@
 from __future__ import annotations
 
 import os
+import base64
 from pathlib import Path
 import re
 import html
 from datetime import datetime, timezone
 import hashlib
+import json
+import secrets
 import uuid
 
 import streamlit as st
 import streamlit.components.v1 as components
 
-from takeover.analytics import emit_google_event, normalise_activation
+from takeover.analytics import emit_google_event, emit_invitation_events, normalise_activation
 from takeover.browser_encrypt import encrypted_drop
 from takeover.call import load_call
 from takeover.graph import build_graph_html
 from takeover.events import list_events, record_event, record_event_once
 from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
-from takeover.identity import resolve_drop_token
+from takeover.identity import node_write_identity, resolve_drop_token, resolve_identity
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
+from takeover.onboarding import ENTRY_MODES, persist_entry
+from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
+from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, apply_inhabited_nodes, node_stage
+from takeover.node_population import load_population_registry, resolve_population_participant
 from takeover.registry import SessionRegistry, with_rc0_seeds
+from takeover.resource_field import load_resource_field, resource_rows
 from takeover.resources import build_combined_resources_figure, load_resources
 from takeover.style import CSS
 from takeover.timeline import build_histropedia_html, build_time_mapping_figure, build_time_mapping_rows, load_trajectory
@@ -32,10 +40,14 @@ from takeover.timeline import build_histropedia_html, build_time_mapping_figure,
 ROOT = Path(__file__).resolve().parent
 TRAJECTORY = ROOT / "config" / "takeover_trajectory.yaml"
 RESOURCES = ROOT / "config" / "takeover_resources.yaml"
+RESOURCE_FIELD = ROOT / "config" / "takeover_resource_field.yaml"
 CALL = ROOT / "config" / "takeover_call.yaml"
 LISTENING = ROOT / "config" / "takeover_listening.yaml"
 HISTROPEDIA = ROOT / "assets" / "vendor" / "histropedia.umd.min.js"
 ENCRYPTED_REGISTRY = Path(os.getenv("TAKEOVER_ENCRYPTED_REGISTRY", ROOT / "data" / "encrypted_storage_v1.json"))
+NODE_POPULATION = load_population_registry(ROOT / "config" / "takeover_node_population.yaml")
+NODE_REGISTRY = Path(os.getenv("TAKEOVER_NODE_REGISTRY", ROOT / "data" / "inhabited_nodes_v1.json"))
+NODE_MEDIA = Path(os.getenv("TAKEOVER_NODE_MEDIA", ROOT / "data" / "inhabited_node_media"))
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -48,6 +60,7 @@ st.markdown(CSS, unsafe_allow_html=True)
 session_event_new = record_event_once(st.session_state, "session-started", "event_session_started")
 
 activation = normalise_activation(str(st.query_params.get("a", "") or ""))
+current_participant_id = resolve_population_participant(NODE_POPULATION, activation)
 activation_event_new = False
 if activation:
     activation_event_new = record_event_once(
@@ -73,6 +86,18 @@ def _secret(name: str) -> str:
         return str(st.secrets.get(name, "") or "").strip()
     except Exception:
         return ""
+
+
+def _node_write_participant(participant_id: str | None) -> str | None:
+    """Resolve the narrow node-population capability carried by ``?c=``."""
+    if not participant_id:
+        return None
+    try:
+        identities = {name: dict(value) for name, value in st.secrets["takeover_identities"].items()}
+    except (KeyError, TypeError):
+        return None
+    capability = str(st.query_params.get("c", "") or "")
+    return node_write_identity(participant_id, capability, identities)
 
 
 def _notion_token_value() -> str:
@@ -240,17 +265,7 @@ if session_event_new:
         params={"event_category": "takeover", "event_label": "session", "value": 1},
     )
 if activation_event_new:
-    emit_google_event(
-        measurement_id,
-        key=f"takeover-invitation-{activation}",
-        event_name="invitation_activation",
-        params={
-            "event_category": "invitation",
-            "event_label": activation,
-            "activation_source": activation,
-            "value": 1,
-        },
-    )
+    emit_invitation_events(measurement_id, activation)
 
 
 @st.cache_resource
@@ -271,31 +286,318 @@ def switch_view(view: str) -> None:
     record_event(st.session_state, "event_navigate", view)
 
 
-@st.dialog(t("access_door"), width="large")
-def access_door() -> None:
-    st.caption(t("project_formation"))
-    st.markdown(t("door_intro"))
-    st.markdown(f'<div class="door-option">{t("follow_trajectory")}</div>', unsafe_allow_html=True)
-    st.button(t("open_timeline"), use_container_width=True, on_click=switch_view, args=("timeline",))
-    st.markdown(f'<div class="door-option">{t("see_needed")}</div>', unsafe_allow_html=True)
-    st.button(t("open_necessities"), use_container_width=True, on_click=switch_view, args=("necessities",))
-    st.markdown(f'<div class="door-option door-dormant">{t("contribute_unopened")}</div>', unsafe_allow_html=True)
-    st.button(t("door_inactive"), disabled=True, use_container_width=True)
-    st.markdown(f'<div class="door-option door-dormant">{t("explore_dormant")}</div>', unsafe_allow_html=True)
+def select_entry_mode(mode: str) -> None:
+    st.session_state["start_here_mode"] = mode
+    st.session_state.pop("start_here_draft", None)
+
+
+def _persist_start_here(repo, persona, draft: dict) -> None:
+    participant_id = f"participant-{persona.access_key[:12].lower()}"
+    display_name = str(draft.get("display_name") or persona.nickname or "Anonymous")
+    participant, _contribution, _event = persist_entry(
+        st.session_state, participant_id=participant_id, display_name=display_name,
+        mode=str(draft["mode"]), contribution=dict(draft["payload"]),
+        occurred_at=datetime.now(timezone.utc),
+    )
+    if not any(item.id == participant_id for item in repo.list_entities()):
+        repo.add_entity(Entity(
+            participant_id, "person", display_name,
+            f'Person • Alien / {participant["role"]} / invite', source="start_here",
+            metadata={"primary_mode": participant["role"], "authority": "provisional"},
+        ))
+    st.session_state["start_here_persisted"] = participant_id
+    record_event(st.session_state, "event_entry_persisted", participant_id, str(draft["mode"]))
+
+
+@st.dialog(t("start_here"), width="large")
+def access_door(repo) -> None:
+    st.caption("BROWSING IS OPEN · CONTRIBUTING CREATES IDENTITY")
+    st.markdown('<div class="entry-flow">ENTER → CHOOSE → CONTRIBUTE → AUTHENTICATE → PERSIST</div>', unsafe_allow_html=True)
+    if st.session_state.get("start_here_persisted"):
+        st.success("PRESENCE PERSISTED · PROVISIONAL")
+        st.caption("PERSON ≠ CONTRIBUTION ≠ EVENT")
+        return
+
+    mode = str(st.session_state.get("start_here_mode") or "")
+    if not mode:
+        st.markdown('<div class="entry-question">HOW ARE YOU ENTERING?</div>', unsafe_allow_html=True)
+        for mode_id, label in ENTRY_MODES:
+            st.button(label, key=f"entry-mode-{mode_id}", width="stretch", on_click=select_entry_mode, args=(mode_id,))
+        return
+
+    mode_label = dict(ENTRY_MODES)[mode]
+    st.markdown(f'<div class="entry-selected"><small>PRIMARY MODE</small><strong>{html.escape(mode_label)}</strong></div>', unsafe_allow_html=True)
+    if st.button("← CHOOSE ANOTHER WAY", key="entry-mode-reset"):
+        st.session_state.pop("start_here_mode", None)
+        st.session_state.pop("start_here_draft", None)
+        st.rerun()
+
+    draft = st.session_state.get("start_here_draft")
+    if draft is None:
+        with st.form(f"entry-form-{mode}"):
+            payload: dict[str, object] = {}
+            display_name = ""
+            if mode in {"performance", "music", "dj", "visual", "technical"}:
+                display_name = st.text_input("NAME")
+            if mode == "performance":
+                payload["link"] = st.text_input("ONE LINK", placeholder="Instagram / website / video")
+                payload["practice"] = st.text_area("WHAT KIND OF MOVEMENT OR PRACTICE DO YOU BRING?")
+            elif mode in {"music", "dj"}:
+                payload["listening_link"] = st.text_input("ONE LISTENING LINK")
+                payload["practice"] = st.text_area("ONE SENTENCE ON YOUR PRACTICE")
+                payload["availability_setup"] = st.text_input("AVAILABILITY / LIVE SETUP · OPTIONAL")
+            elif mode == "visual":
+                payload["link"] = st.text_input("ONE LINK")
+                payload["references"] = st.text_area("1–3 REFERENCE IMAGE LINKS")
+                payload["practice"] = st.text_area("ONE SENTENCE ON MEDIUM / SCALE / SURFACE")
+            elif mode == "technical":
+                payload["possibility"] = st.text_area("WHAT CAN YOU BRING OR MAKE POSSIBLE?")
+                payload["capacities"] = st.multiselect(
+                    "CAPACITIES", ("equipment", "fabrication", "projection", "sound", "lighting", "rigging", "coding", "brainstorming", "thinking", "other"),
+                )
+                payload["references"] = st.text_area("FILES / SPECS / PHOTO LINKS · OPTIONAL")
+            elif mode == "commission":
+                payload["understand"] = st.text_area("WHAT WOULD YOU WANT TO UNDERSTAND BETTER?")
+                payload["unresolved"] = st.text_area("WHAT FEELS UNRESOLVED?")
+                payload["curiosity"] = st.text_area("WHAT WOULD MAKE YOU CURIOUS ENOUGH TO CONTINUE?")
+                payload["lenses"] = st.multiselect("OPTIONAL LENSES", ("uncertainty", "time", "space", "composition"))
+                payload["anonymous"] = st.checkbox("RESPOND ANONYMOUSLY")
+                payload["activate_next"] = st.checkbox("ACTIVATE THE NEXT STAGE")
+            else:
+                payload["reason"] = st.text_area("BRING SOMETHING, OR TELL US WHY YOU ENTERED.")
+                payload["invite"] = st.text_area("ANYONE YOU WOULD LIKE TO INVITE? TELL US WHY.")
+            payload["drop_requested"] = st.checkbox("I MAY WANT TO ADD A PRIVATE DROP AFTER AUTHENTICATION")
+            submitted = st.form_submit_button("CONTINUE TO IDENTITY", width="stretch")
+            if submitted:
+                st.session_state["start_here_draft"] = {"mode": mode, "display_name": display_name, "payload": payload}
+                record_event(st.session_state, "event_entry_drafted", mode)
+                st.rerun()
+        return
+
+    st.markdown('<div class="entry-auth"><small>IDENTITY / AUTH</small><strong>YOUR CONTRIBUTION IS STILL A DRAFT.</strong><p>Persisting it creates or updates a provisional participant and records this act separately.</p></div>', unsafe_allow_html=True)
+    persona_store = ProvisionalPersonaStore(st.session_state)
+    active = persona_store.get_persona(str(st.session_state.get("active_persona_key", "")))
+    if active:
+        st.markdown(f'<div class="persona-emoji">{active.emoji_suffix_4}</div>', unsafe_allow_html=True)
+        if st.button("PERSIST THIS CONTRIBUTION", type="primary", width="stretch"):
+            _persist_start_here(repo, active, draft)
+            st.rerun()
+        return
+    create_col, return_col = st.columns(2)
+    with create_col:
+        if st.button("CREATE EMOJI IDENTITY", type="primary", width="stretch"):
+            result = mint_persona(
+                persona_store, nickname=str(draft.get("display_name") or ""),
+                key_factory=lambda: secrets.token_hex(16), clock=lambda: datetime.now(timezone.utc),
+            )
+            st.session_state["active_persona_key"] = result.persona.access_key
+            st.rerun()
+    with return_col:
+        raw_key = st.text_input("RETURN WITH KEY / EMOJI", type="password")
+        if st.button("AUTHENTICATE", disabled=not raw_key.strip(), width="stretch"):
+            result = authenticate_persona(persona_store, raw_key, clock=lambda: datetime.now(timezone.utc))
+            if result is None:
+                st.error("KEY INVALID OR AMBIGUOUS")
+            else:
+                st.session_state["active_persona_key"] = result.persona.access_key
+                st.rerun()
+
+
+def _node_identities() -> dict[str, dict[str, str]]:
+    if not _secrets_available():
+        return {}
+    try:
+        return {
+            str(node_id): {"access_key": str(config["access_key"])}
+            for node_id, config in st.secrets["takeover_identities"].items()
+            if str(config.get("access_key", "")).strip()
+        }
+    except (KeyError, TypeError, AttributeError):
+        return {}
+
+
+def render_activation_drop() -> None:
+    identities = _node_identities()
+    if not activation or activation not in identities:
+        return
+    with st.container(key=f"activation-drop-{activation}"):
+        st.markdown(
+            f'<div class="activation-drop-head"><small>INVITATION / {html.escape(activation.upper())}</small>'
+            f'<strong>DROP / {html.escape(activation.upper())}</strong></div>',
+            unsafe_allow_html=True,
+        )
+        st.write("A private encrypted drop is available for this seeded node.")
+        authenticated = st.session_state.get("takeover_authenticated_drop") == activation
+        if not authenticated:
+            raw_key = st.text_input("DROP ACCESS KEY / EMOJI", type="password", key=f"drop-auth-{activation}")
+            if st.button("AUTHENTICATE DROP", disabled=not raw_key.strip(), key=f"drop-auth-submit-{activation}", width="stretch"):
+                if resolve_identity(raw_key, identities) != activation:
+                    st.error("IDENTITY DOES NOT MATCH THIS DROP")
+                else:
+                    st.session_state["takeover_authenticated_drop"] = activation
+                    record_event(st.session_state, "event_drop_authenticated", activation)
+                    st.rerun()
+            st.caption("THE QUERY PARAMETER SELECTS THE NODE; IT DOES NOT GRANT STORAGE ACCESS.")
+            return
+        s3, bucket, storage_identities, error = _drop_storage_context()
+        if error:
+            st.warning(error)
+            return
+        config = storage_identities.get(activation) or {}
+        if not str(config.get("capability") or "").strip():
+            st.warning("DROP CAPABILITY IS NOT CONFIGURED")
+            return
+        if st.button("OPEN PRIVATE DROP", key=f"drop-open-{activation}", type="primary", width="stretch"):
+            resource_drop_dialog(activation, storage_identities, s3, bucket)
+
+
+def _node_reference(raw: str) -> dict[str, str]:
+    value = raw.strip()
+    if not value:
+        return {}
+    if value.startswith(("http://", "https://")):
+        return {"url": value, "filename": value.rstrip("/").rsplit("/", 1)[-1]}
+    return {"cid": value}
+
+
+def _media_data_url(reference: dict) -> str:
+    path = Path(str(reference.get("path") or ""))
+    mime_type = str(reference.get("mime_type") or "")
+    if not path.is_file() or not mime_type.startswith("image/"):
+        return ""
+    return f"data:{mime_type};base64,{base64.b64encode(path.read_bytes()).decode()}"
+
+
+def _nodes_for_render(store: FileNodeStore) -> dict[str, dict]:
+    nodes = store.list_nodes()
+    for record in nodes.values():
+        avatar = (record.get("node") or {}).get("avatar") or {}
+        if avatar.get("path"):
+            avatar["url"] = _media_data_url(avatar)
+    return nodes
+
+
+def render_node_editor(entity: Entity, store: FileNodeStore) -> None:
+    current = store.get(entity.id) or {}
+    node = current.get("node") or {}
+    avatar = node.get("avatar") or {}
+    crop = avatar.get("crop") or {}
+    sample = node.get("sample") or {}
+    st.markdown("**AVATAR**")
+    avatar_upload = st.file_uploader("DROP IMAGE", type=("jpg", "jpeg", "png", "webp"), key=f"node-avatar-{entity.id}")
+    st.caption("THE RECTANGULAR ORIGINAL IS PRESERVED. THE CIRCLE IS A RENDERER DECISION.")
+    crop_x, crop_y, crop_scale = st.columns(3)
+    with crop_x:
+        x = st.number_input("CROP X", 0.0, 1.0, float(crop.get("x", .5)), .05)
+    with crop_y:
+        y = st.number_input("CROP Y", 0.0, 1.0, float(crop.get("y", .5)), .05)
+    with crop_scale:
+        scale = st.number_input("CROP SCALE", 1.0, 4.0, float(crop.get("scale", 1.0)), .1)
+    note = st.text_area("BIO / NOTE", value=str((node.get("text") or {}).get("text") or ""), help="Markdown", max_chars=2000)
+    st.markdown('<div class="node-preview-label">BIO / NOTE · PREVIEW</div>', unsafe_allow_html=True)
+    st.markdown(note or "_Your note preview will appear here._")
+    practice = st.text_input("PRACTICE", value=", ".join(node.get("practice") or []), placeholder="photography, cyanotype")
+    st.markdown("**SAMPLE · OPTIONAL**")
+    sample_upload = st.file_uploader("DROP ONE SAMPLE", key=f"node-sample-{entity.id}")
+    sample_reference = st.text_input("OR EXTERNAL LINK / CID", value=str(sample.get("url") or sample.get("cid") or ""))
+    sample_caption = st.text_input("SAMPLE CAPTION", value=str(sample.get("caption") or ""))
+    has_avatar = avatar_upload is not None or bool(avatar.get("path") or avatar.get("url") or avatar.get("cid"))
+    can_save = has_avatar and bool(note.strip()) and bool(practice.strip())
+    save_column, cancel_column = st.columns([2, 1])
+    with save_column:
+        save = st.button("INHABIT NODE", type="primary", disabled=not can_save, width="stretch", key=f"node-save-{entity.id}")
+    with cancel_column:
+        if st.button("CANCEL", width="stretch", key=f"node-cancel-{entity.id}"):
+            st.query_params.pop("node", None)
+            st.rerun()
+    if save:
+        avatar_payload = dict(avatar)
+        if avatar_upload is not None:
+            avatar_payload = PublicNodeMediaStore(NODE_MEDIA).save_original(
+                node_id=entity.id, filename=avatar_upload.name,
+                content_type=avatar_upload.type or "application/octet-stream", data=avatar_upload.getvalue(),
+            )
+        avatar_payload["crop"] = {"x": x, "y": y, "scale": scale}
+        sample_payload = {**_node_reference(sample_reference), "caption": sample_caption.strip()}
+        if sample_upload is not None:
+            sample_payload = {
+                **PublicNodeMediaStore(NODE_MEDIA).save_sample(
+                    node_id=entity.id, filename=sample_upload.name,
+                    content_type=sample_upload.type or "application/octet-stream", data=sample_upload.getvalue(),
+                ),
+                "caption": sample_caption.strip(),
+            }
+        try:
+            record = store.save(
+                node_id=entity.id, avatar=avatar_payload, text=note,
+                practice=practice.split(","), sample=sample_payload,
+                clock=lambda: datetime.now(timezone.utc),
+            )
+        except ValueError as exc:
+            st.error(str(exc).upper())
+        else:
+            record_event(st.session_state, "event_node_inhabited", entity.id, record["stage"])
+            st.rerun()
+
+
+def render_ready_node(entity: Entity, record: dict | None) -> None:
+    st.markdown('<div class="node-population-stage">NODE / READY</div>', unsafe_allow_html=True)
+    if record is None:
+        if entity.label:
+            st.write(entity.label)
+        st.caption("REGISTERED KERNEL NODE")
+        return
+    node = record.get("node") or {}
+    avatar = node.get("avatar") or {}
+    avatar_url = str(avatar.get("url") or _media_data_url(avatar) or "")
+    if avatar_url.startswith(("http://", "https://")):
+        crop = avatar.get("crop") or {}
+        st.markdown(
+            f'<div class="inhabited-node-avatar" style="background-image:url({html.escape(json.dumps(avatar_url))});background-position:{100 * float(crop.get("x", .5)):.1f}% {100 * float(crop.get("y", .5)):.1f}%;background-size:{100 * float(crop.get("scale", 1)):.1f}%"></div>',
+            unsafe_allow_html=True,
+        )
+    elif avatar.get("cid"):
+        st.caption(f'AVATAR CID · {avatar["cid"]}')
+    st.markdown(str((node.get("text") or {}).get("text") or ""))
+    practices = "".join(f'<span>{html.escape(str(item))}</span>' for item in node.get("practice") or [])
+    st.markdown(f'<div class="inhabited-node-practice">{practices}</div>', unsafe_allow_html=True)
+    sample = node.get("sample") or {}
+    sample_ref = str(sample.get("url") or sample.get("cid") or "")
+    st.markdown(f'<div class="inhabited-node-sample"><small>SAMPLE / {html.escape(str(sample.get("type") or "LINK").upper())}</small><strong>{html.escape(str(sample.get("caption") or sample_ref))}</strong><span>{html.escape(sample_ref)}</span></div>', unsafe_allow_html=True)
 
 
 @st.dialog(t("node"), width="large")
-def node_dialog(entity: Entity) -> None:
+def node_dialog(entity: Entity, participant_id: str | None) -> None:
     st.markdown(f'<div class="node-kind">{html.escape(entity_type_label(entity.type))}</div>', unsafe_allow_html=True)
     st.header(entity.title)
-    if entity.label:
-        st.write(entity.label)
-    st.caption(f'{t("stage")} · {entity.stage.upper()}   /   {t("status")} · {entity.status.upper()}')
-    if entity.source:
-        st.write(entity.source)
-    if entity.metadata:
-        for key, value in entity.metadata.items():
-            st.write(f"{key}: {value}")
+    stage = node_stage(entity)
+    store = FileNodeStore(NODE_REGISTRY)
+    record = store.get(entity.id)
+    stage_label = "POPULATION" if stage == "node_population" else stage.replace("_", " ").upper()
+    st.markdown(
+        f'<div class="node-population-stage">NODE STAGE · {html.escape(stage_label)} / {html.escape(entity.status.upper())}</div>',
+        unsafe_allow_html=True,
+    )
+    if stage == "node_population":
+        if participant_id == entity.id and _node_write_participant(participant_id) == entity.id:
+            st.write("This node is waiting for you.")
+            render_node_editor(entity, store)
+        elif participant_id == entity.id:
+            st.write("This node is waiting for you.")
+            st.caption("WRITE CAPABILITY REQUIRED TO INHABIT THIS NODE.")
+        else:
+            st.write("This node is waiting for them.")
+            if entity.label:
+                st.write(entity.label)
+    elif stage == "ready":
+        render_ready_node(entity, record)
+    elif stage == "invited":
+        st.write("This node enters through START HERE when its invitation is activated.")
+    elif stage == "contributing":
+        st.write("The inhabited node, private drop and active relations are available at this stage.")
+    else:
+        if entity.label:
+            st.write(entity.label)
     st.caption(f'{t("registry_id")} · {entity.id}')
 
 
@@ -351,8 +653,8 @@ def state_dialog(entities: list[Entity], relations) -> None:
 def render_nav(current: str) -> None:
     st.markdown(f'<div class="takeover-brand">{t("project_name")}</div>', unsafe_allow_html=True)
     with st.container(key="top-nav"):
-        columns = st.columns([1, 1, 1, 1, 1, 3])
-        for column, label, key in zip(columns, (t("process"), t("timeline"), t("needs"), t("resources"), t("voices")), ("network", "timeline", "necessities", "resources", "voices")):
+        columns = st.columns([1, 1, 1, 1, 1, 1, 2])
+        for column, label, key in zip(columns, (t("process"), t("timeline"), t("needs"), t("resources"), t("order_art"), t("voices")), ("network", "timeline", "necessities", "resources", "order-art", "voices")):
             with column:
                 st.button(label, key=f"nav-{key}", disabled=current == key, on_click=switch_view, args=(key,))
 
@@ -483,6 +785,7 @@ def render_sidebar(current: str, mode: str) -> None:
             (t("timeline"), "timeline"),
             (t("needs"), "necessities"),
             (t("resources"), "resources"),
+            (t("order_art"), "order-art"),
             (t("voices"), "voices"),
         ):
             st.button(
@@ -517,6 +820,7 @@ def render_sidebar(current: str, mode: str) -> None:
 
 def render_network(repo, mode: str) -> None:
     entities, relations = with_rc0_seeds(repo.list_entities(), repo.list_relations())
+    entities = apply_inhabited_nodes(entities, _nodes_for_render(FileNodeStore(NODE_REGISTRY)))
     process = "".join(
         f'<p>{html.escape(t(key))}</p>'
         for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
@@ -558,14 +862,20 @@ def render_network(repo, mode: str) -> None:
         )
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
+        write_capability = ""
+        if _node_write_participant(current_participant_id) == current_participant_id:
+            write_capability = str(st.query_params.get("c", "") or "")
         st.html(
             build_graph_html(
                 entities, relations, t("start_here"), t("state_of_art"),
                 t("nodes"), t("connections"), t("connectivity"),
                 t("active_relations"), t("additions_opening_next"),
                 t("active_people"), t("latent_known"), t("latent_private"), t("unknown"),
+                current_participant_id,
+                write_capability,
             )
         )
+    render_activation_drop()
     st.markdown(
         '<section class="takeover-three-blocks">'
         f'<article class="takeover-process">{process}</article>'
@@ -604,12 +914,12 @@ def render_network(repo, mode: str) -> None:
             )
     if str(st.query_params.get("door", "") or "") == "access":
         record_event_once(st.session_state, "access-door-open", "event_access_opened")
-        access_door()
+        access_door(repo)
     requested = str(st.query_params.get("node", "") or "")
     selected = next((item for item in entities if item.id == requested), None)
     if selected:
         record_event_once(st.session_state, f"node-open-{selected.id}", "event_node_opened", selected.id)
-        node_dialog(selected)
+        node_dialog(selected, current_participant_id)
     requested_relation = str(st.query_params.get("relation", "") or "")
     selected_relation = next((item for item in relations if item.id == requested_relation), None)
     if selected_relation:
@@ -684,14 +994,52 @@ def render_necessities(repo) -> None:
         st.info(t("no_necessities"))
 
 
-def render_resources() -> None:
+def render_resources(repo) -> None:
     trajectory = load_trajectory(TRAJECTORY)
     resource_plan = load_resources(RESOURCES)
     st.markdown(f'<div class="section-head">{t("resources")} · {t("application")}</div>', unsafe_allow_html=True)
     st.write(t("resources_intro"))
     st.caption(t("observed_intention"))
+    actions = (
+        ("buy", "resource_action_buy", "resource_action_buy_explanation"),
+        ("donate", "resource_action_donate", "resource_action_donate_explanation"),
+        ("invest", "resource_action_invest", "resource_action_invest_explanation"),
+        ("bet", "resource_action_bet", "resource_action_bet_explanation"),
+        ("play", "resource_action_play", "resource_action_play_explanation"),
+    )
+    with st.container(key="resource-actions"):
+        for column, (action, label_key, explanation_key) in zip(st.columns(5), actions):
+            with column:
+                pressed = st.button(t(label_key), key=f"resource-action-{action}", width="stretch")
+                st.markdown(f'<p class="resource-action-explanation">{html.escape(t(explanation_key))}</p>', unsafe_allow_html=True)
+                if pressed:
+                    record_event(st.session_state, "event_resource_action", action, "rc2-pathway-visible")
+                    st.caption(t("resource_action_pending"))
     bucket_objects, bucket_error = _bucket_objects()
     total_bytes = sum(int(item.get("Size", 0)) for item in bucket_objects)
+    field = load_resource_field(RESOURCE_FIELD)
+    active_people = sum(entity.status == "active" for entity in with_rc0_seeds(repo.list_entities(), repo.list_relations())[0])
+    activation_events = sum(event.get("label_key") == "event_invitation_activation" for event in list_events(st.session_state))
+    rows = resource_rows(
+        field, active_people=active_people, bucket_bytes=total_bytes,
+        bucket_files=len(bucket_objects), activation_events=activation_events,
+    )
+    application = field["application"]
+    transition_suffix = f' · {application["submitted_at"]}' if application.get("submitted_at") else " · TIMESTAMP UNSET"
+    st.markdown(
+        f'<section class="application-transition"><span>APPLICATION / OPEN</span><b>→</b>'
+        f'<span class="{application["state"]}">APPLICATION / SUBMITTED{html.escape(transition_suffix)}</span></section>',
+        unsafe_allow_html=True,
+    )
+    for row in rows:
+        provenance = row.get("provenance") or {}
+        provenance_text = " · ".join(str(value) for value in (provenance.get("who"), provenance.get("when"), provenance.get("condition")) if value)
+        st.markdown(
+            f'<article class="resource-field-row state-{html.escape(row["state"])}">'
+            f'<strong>{html.escape(row["label"])}</strong><i></i><span>{html.escape(row["value"])}</span>'
+            f'<small>{html.escape(provenance_text or "PROVENANCE · OPEN")}</small></article>',
+            unsafe_allow_html=True,
+        )
     allocated_metric, volume_metric, files_metric = st.columns(3)
     allocated_metric.metric("BUCKET OF DOUGH", "€0")
     volume_metric.metric("BUCKET OF GOLD", f"{total_bytes / 1024 / 1024:.2f} MB" if total_bytes else "0 B")
@@ -707,6 +1055,32 @@ def render_resources() -> None:
         width="stretch",
         theme=None,
         config={"displayModeBar": False, "scrollZoom": False},
+    )
+
+
+def render_order_art() -> None:
+    st.markdown(f'<div class="section-head">{t("order_art")}</div>', unsafe_allow_html=True)
+    st.write(t("order_art_intro"))
+    st.markdown(
+        f'<section class="order-art-empty"><small>{html.escape(t("order_art_status"))}</small>'
+        f'<strong>{html.escape(t("order_art_empty"))}</strong></section>',
+        unsafe_allow_html=True,
+    )
+
+
+def render_footer() -> None:
+    telegram_icon = (
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 3.2 18.3 19c-.2 1.1-.9 1.4-1.8.9l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L5.8 12.8 1 11.3c-1-.3-1.1-1 .2-1.5L20 2.5c.9-.3 1.7.2 1.5.7Z"/></svg>'
+    )
+    filebase_icon = (
+        '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 8 4.3v11.4L12 22l-8-4.3V6.3L12 2Zm0 2.3L6.2 7.4 12 10.6l5.8-3.2L12 4.3Zm-6 5v7.2l5 2.7V12L6 9.3Zm7 9.9 5-2.7V9.3L13 12v7.2Z"/></svg>'
+    )
+    st.markdown(
+        '<footer class="takeover-footer"><span>FOLLOW THE SIGNAL</span><nav>'
+        f'<a href="https://t.me/takeover_process_bot" target="_blank" rel="noopener noreferrer" aria-label="Open TAKE OVER on Telegram">{telegram_icon}<strong>TELEGRAM</strong><small>CHANNEL / BOT ↗</small></a>'
+        f'<a href="https://console.filebase.com/buckets/takeover-fotografiska" target="_blank" rel="noopener noreferrer" aria-label="Open the TAKE OVER Filebase bucket">{filebase_icon}<strong>FILEBASE</strong><small>BUCKET ↗</small></a>'
+        '</nav></footer>',
+        unsafe_allow_html=True,
     )
 
 
@@ -804,7 +1178,7 @@ repo, registry_mode = registry()
 current_view = st.session_state.get("takeover_view") or str(st.query_params.get("view", "network"))
 if str(st.query_params.get("k", "") or "").strip():
     current_view = "network"
-if current_view not in {"network", "timeline", "necessities", "resources", "voices"}:
+if current_view not in {"network", "timeline", "necessities", "resources", "order-art", "voices"}:
     current_view = "network"
 render_nav(current_view)
 render_sidebar(current_view, registry_mode)
@@ -815,6 +1189,9 @@ elif current_view == "timeline":
 elif current_view == "necessities":
     render_necessities(repo)
 elif current_view == "resources":
-    render_resources()
+    render_resources(repo)
+elif current_view == "order-art":
+    render_order_art()
 else:
     render_voices()
+render_footer()

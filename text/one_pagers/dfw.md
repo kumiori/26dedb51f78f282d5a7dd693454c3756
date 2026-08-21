@@ -40,7 +40,7 @@ They are empty because somebody is not here yet.
 
 This is the proposition in its least metaphorical form: twenty percent of scarce exhibition space is surrendered in advance to people, works or relations we cannot presently name. If nobody enters, the vacancy remains visible. If somebody does, the work changes.
 
-The initial constellation is small. Andrés A. León Baldelli / KUMIORI brings the photographic sequence. Ave Palm brings another photographic language through abandoned architectures, bodies, movement and cyanotype. Mai-Brit Tänava enters first as a photographed body and then, crucially, as a voice capable of speaking back from inside the image. Kenn-Eerik Kannike introduces listening, site recordings and the possibility of live electronic sound.
+The initial constellation is small. Andrés A. León Baldelli / kumiori brings the photographic sequence. Ave Palm brings another photographic language through abandoned architectures, bodies, movement and cyanotype. Mai-Brit Tänava enters first as a photographed body and then, crucially, as a voice capable of speaking back from inside the image. Kenn-Eerik Kannike introduces listening, site recordings and the possibility of live electronic sound.
 
 Nobody disappears into a collective signature.
 

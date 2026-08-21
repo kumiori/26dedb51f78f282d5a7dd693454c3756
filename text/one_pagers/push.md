@@ -86,7 +86,7 @@ Which is economically idiotic.
 
 Which is why it means something.
 
-The initial participants remain identifiable. KUMIORI brings one photographic trajectory. Ave Palm enters with another, abandoned architectures, bodies, movement, cyanotype. Mai-Brit Tänava is photographed, then speaks, which changes her position inside the apparatus from represented body to speaking agent. Kenn-Eerik Kannike introduces situated sound, electronic performance, listening.
+The initial participants remain identifiable. kumiori brings one photographic trajectory. Ave Palm enters with another, abandoned architectures, bodies, movement, cyanotype. Mai-Brit Tänava is photographed, then speaks, which changes her position inside the apparatus from represented body to speaking agent. Kenn-Eerik Kannike introduces situated sound, electronic performance, listening.
 
 Nobody gets dissolved into a soothing collective pronoun.
 

@@ -1,0 +1,12 @@
+schema_version: takeover-node-population/v1
+participants:
+  - node_id: kumiori
+    aliases: [kumiori]
+  - node_id: ave
+    aliases: [ave]
+  - node_id: kenneerik
+    aliases: [kenneerik, kenn-eerik]
+  - node_id: mai_brit
+    aliases: [maibrit, mai-brit, mai_brit]
+  - node_id: graziano
+    aliases: [graziano]

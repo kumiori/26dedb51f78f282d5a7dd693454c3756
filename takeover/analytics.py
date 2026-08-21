@@ -34,3 +34,32 @@ def emit_google_event(
 
     st_gtag(key=key, id=clean_id, event_name=event_name, params=params)
     return True
+
+
+def emit_invitation_events(measurement_id: str, activation: str) -> int:
+    """Emit the generic invitation event and route-specific application signal."""
+    emitted = int(emit_google_event(
+        measurement_id,
+        key=f"takeover-invitation-{activation}",
+        event_name="invitation_activation",
+        params={
+            "event_category": "invitation",
+            "event_label": activation,
+            "activation_source": activation,
+            "value": 1,
+        },
+    ))
+    if activation == "application":
+        emitted += int(emit_google_event(
+            measurement_id,
+            key="takeover-commission-application-visit",
+            event_name="commission_application_visit",
+            params={
+                "event_category": "commission",
+                "event_label": "application",
+                "activation_source": "application",
+                "audience_context": "commission",
+                "value": 1,
+            },
+        ))
+    return emitted

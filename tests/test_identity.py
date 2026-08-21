@@ -1,4 +1,4 @@
-from takeover.identity import emoji_suffix, hex_to_emoji, invitation_identity, is_full_access_key, resolve_drop_token, resolve_identity, split_emoji_symbols
+from takeover.identity import emoji_suffix, hex_to_emoji, invitation_identity, is_full_access_key, node_write_identity, resolve_drop_token, resolve_identity, split_emoji_symbols
 
 
 IDENTITIES = {
@@ -22,6 +22,12 @@ def test_invitation_capability_selects_but_does_not_authenticate_identity() -> N
     assert invitation_identity("invite_ave", "invite-capability", IDENTITIES) == "ave"
     assert invitation_identity("invite_ave", "wrong", IDENTITIES) is None
     assert invitation_identity("ave", "invite-capability", IDENTITIES) is None
+
+
+def test_node_write_capability_is_scoped_to_one_participant() -> None:
+    assert node_write_identity("ave", "invite-capability", IDENTITIES) == "ave"
+    assert node_write_identity("ave", "wrong", IDENTITIES) is None
+    assert node_write_identity("kenneerik", "invite-capability", IDENTITIES) is None
 
 
 def test_single_participant_drop_token_resolves_participant() -> None:

@@ -19,6 +19,7 @@ from takeover.browser_encrypt import encrypted_drop
 from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
 from takeover.identity import resolve_drop_token
 from takeover.storage_timeline import storage_timeline
+from takeover_fotografiska.storage import encrypted_object_key, encrypted_object_prefix
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -135,7 +136,7 @@ def private_drop(participant: str) -> None:
     namespace = hashlib.sha256(
         identities[participant]["capability"].encode()
     ).hexdigest()[:16]
-    object_key = f"private/{participant}/{namespace}/{contribution_id}.enc"
+    object_key = encrypted_object_key(participant, namespace, contribution_id)
     try:
         upload_url = s3.generate_presigned_url(
             "put_object",
@@ -169,7 +170,7 @@ def private_drop(participant: str) -> None:
         return
 
     uploaded = dict(result.uploaded)
-    expected_prefix = f"private/{participant}/{namespace}/"
+    expected_prefix = encrypted_object_prefix(participant, namespace)
     valid = (
         uploaded.get("contributor_id") == participant
         and str(uploaded.get("key", "")).startswith(expected_prefix)

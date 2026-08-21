@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- Added a distinct `commission_application_visit` analytics event for the `?a=application` invitation route without treating the route as visitor authentication.
+- Changed new Fotografiska encrypted-upload object keys from `private/…` to the application-owned `public/…` bucket prefix; encryption and registry visibility are unchanged.
+
 ## 0.1.0 - 2026-08-20
 
 - Extracted immutable validated domain records and explicit registry authority.

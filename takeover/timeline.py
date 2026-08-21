@@ -108,6 +108,10 @@ def build_histropedia_html(payload: dict[str, Any], library_source: str) -> str:
     dated = [event for event in payload["primitives"] if event.get("date")]
     initial = _as_histropedia_date(min(str(event["date"]) for event in dated))
     title = html.escape(str(payload["plan"].get("title") or "TAKE OVER"))
+    event_flag_style = json.dumps({
+        "header": {"text": {"font": "normal 11px Courier New, monospace"}},
+        "subheader": {"text": {"font": "normal 11px Courier New, monospace"}},
+    })
     return f"""<!doctype html><html><head><meta charset="utf-8"><style>
     html,body,#histropedia-timeline{{width:100%;height:100%;margin:0;background:#f5f2ed;overflow:hidden}}
     #source{{position:absolute;z-index:2;top:10px;left:12px;font:10px 'Courier New',monospace;letter-spacing:.1em;color:#111}}
@@ -115,7 +119,8 @@ def build_histropedia_html(payload: dict[str, Any], library_source: str) -> str:
     <script>{library_source}</script><script>
     const articles={articles};
     const root=document.getElementById('histropedia-timeline');
-    const timeline=new Histropedia.Timeline(root,{{width:root.clientWidth,height:620,initialDate:{json.dumps(initial)},zoom:{{initial:27}},enableUserControl:true}});
+    const eventFlagStyle={event_flag_style};
+    const timeline=new Histropedia.Timeline(root,{{width:root.clientWidth,height:620,initialDate:{json.dumps(initial)},zoom:{{initial:27}},enableUserControl:true,article:{{defaultStyle:eventFlagStyle}}}});
     timeline.load(articles);
     </script></body></html>"""
 

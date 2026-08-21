@@ -5,7 +5,7 @@ from takeover_engine import Entity, Necessity, Overlay, Relation, Visibility
 RC0_OVERLAY = Overlay(
     id="fotografiska-rc0",
     entities=(
-        Entity("kumiori", "person", "KUMIORI", label="Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0}),
+        Entity("kumiori", "person", "kumiori", label="Person • Alien / initiator / application", metadata={"display_name": "Andrés", "depth": 0}),
         Entity("ave", "person", "Ave", label="Person • Alien / artist / application", metadata={"depth": 0}),
         Entity("mai_brit", "person", "Mai-Brit", label="Person • Alien / voice / application", metadata={"depth": 0}),
         Entity("kenneerik", "person", "Kenn-Eerik", label="Person • Alien / sound / application", metadata={"depth": 0}),

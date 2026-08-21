@@ -14,3 +14,7 @@ The old `takeover` namespace mixed domain rules, external services, plotting, an
 | Plotly/HTML builders | neutral `project_*` result followed by consumer rendering | Renderers remain application-specific. |
 
 The original `takeover` modules remain temporarily as application compatibility surfaces. New consumers must not import them. They are excluded from the `takeover-engine` wheel, so there is no duplicate engine implementation in the distribution.
+
+## Fotografiska encrypted-object prefix
+
+New application uploads use `public/<participant>/<namespace>/<contribution>.enc`. Existing objects under `private/` are not renamed or copied automatically. The prefix change affects storage naming only: payloads remain encrypted ciphertext and contribution visibility remains independently recorded as `private`.

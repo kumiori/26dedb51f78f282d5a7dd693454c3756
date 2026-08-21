@@ -27,6 +27,7 @@ app = [
     "streamlit==1.55.0",
     "streamlit-gtag @ git+https://github.com/kumiori/streamlit-gtag.git@7a04ab228f8cb7edac23d1534e7ed8a095a53299",
 ]
+telegram = ["python-telegram-bot==22.8"]
 dev = ["pytest>=8.0,<9"]
 
 [tool.pytest.ini_options]

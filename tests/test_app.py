@@ -22,6 +22,58 @@ def test_m1_initial_state_is_sparse(monkeypatch) -> None:
     assert [title.value for title in app.main.title] == ["TAKE OVER"]
     assert not any("START HERE" in button.label for button in app.button)
     assert "Add entity" not in [button.label for button in app.button]
+    footer = next(block.value for block in app.main.markdown if 'class="takeover-footer"' in block.value)
+    assert 'href="https://t.me/takeover_process_bot"' in footer
+    assert 'href="https://console.filebase.com/buckets/takeover-fotografiska"' in footer
+    assert footer.count("<svg") == 2
+    assert 'target="_blank"' in footer
+
+
+def test_start_here_branches_before_identity_and_asks_only_mode_specific_fields(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    app = AppTest.from_file("app.py")
+    app.query_params["door"] = "access"
+    app.run(timeout=20)
+    assert not app.exception
+    assert any("HOW ARE YOU ENTERING?" in block.value for block in app.markdown)
+    modes = {
+        "Commission / selection", "Performance / dance", "Musician / live sound",
+        "DJ", "Visual / wall artist", "Technical / production", "Other / not sure yet",
+    }
+    assert modes.issubset({button.label for button in app.button})
+    assert "EMOJI IDENTITY" not in " ".join(block.value for block in app.markdown)
+
+    next(button for button in app.button if button.label == "Performance / dance").click().run(timeout=20)
+    assert not app.exception
+    assert {item.label for item in app.text_input} >= {"NAME", "ONE LINK"}
+    assert any(item.label == "WHAT KIND OF MOVEMENT OR PRACTICE DO YOU BRING?" for item in app.text_area)
+
+
+def test_start_here_authenticates_only_after_a_draft_then_persists_separate_records(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    app = AppTest.from_file("app.py")
+    app.query_params["door"] = "access"
+    app.session_state["start_here_mode"] = "dj"
+    app.session_state["start_here_draft"] = {
+        "mode": "dj",
+        "display_name": "Signal",
+        "payload": {"listening_link": "https://example.test/listen", "practice": "Live selection"},
+    }
+    app.run(timeout=20)
+
+    assert not app.exception
+    assert "CREATE EMOJI IDENTITY" in {button.label for button in app.button}
+    next(button for button in app.button if button.label == "CREATE EMOJI IDENTITY").click().run(timeout=20)
+    assert "PERSIST THIS CONTRIBUTION" in {button.label for button in app.button}
+    next(button for button in app.button if button.label == "PERSIST THIS CONTRIBUTION").click().run(timeout=20)
+
+    assert len(app.session_state["takeover_onboarding_participants"]) == 1
+    assert len(app.session_state["takeover_onboarding_contributions"]) == 1
+    assert len(app.session_state["takeover_onboarding_events"]) == 1
+    participant = next(iter(app.session_state["takeover_onboarding_participants"].values()))
+    assert participant["role"] == "dj"
+    assert participant["authority"] == "provisional"
+    assert app.session_state["takeover_onboarding_events"][0]["actor"] == participant["id"]
 
 
 def test_rc0_application_state_and_qr_activation_are_visible(monkeypatch) -> None:
@@ -103,6 +155,25 @@ def test_any_invitation_source_is_normalised_and_captured(monkeypatch) -> None:
     assert events[0]["detail"] == "query:a"
 
 
+def test_seeded_activation_shows_identity_bounded_drop_widgets(monkeypatch) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    app = AppTest.from_file("app.py")
+    app.secrets = {
+        "takeover_identities": {
+            "ave": {"access_key": "ECB7AD5B28E3DED2C2C6B95CD9A00E5B"},
+        }
+    }
+    app.query_params["a"] = "ave"
+    app.run(timeout=20)
+
+    assert not app.exception
+    corpus = " ".join(block.value for block in app.main.markdown)
+    assert "DROP / AVE" in corpus
+    assert any(item.label == "DROP ACCESS KEY / EMOJI" for item in app.text_input)
+    assert "AUTHENTICATE DROP" in {button.label for button in app.button}
+    assert "OPEN PRIVATE DROP" not in {button.label for button in app.button}
+
+
 def test_landing_process_manifesto_and_entry_share_one_three_column_grid(monkeypatch) -> None:
     monkeypatch.delenv("NOTION_TOKEN", raising=False)
     monkeypatch.delenv("TAKEOVER_GA_MEASUREMENT_ID", raising=False)
@@ -124,7 +195,7 @@ def test_network_connections_and_state_portrait_open_dialogues(monkeypatch) -> N
     assert not app.exception
     corpus = " ".join(block.value for block in app.markdown)
     assert "ACTIVE RELATION" in corpus
-    assert "KUMIORI ↔ Ave" in " ".join(title.value for title in app.header)
+    assert "kumiori ↔ Ave" in " ".join(title.value for title in app.header)
     assert "COLLABORATES_WITH" in corpus
     assert any(
         event["label_key"] == "event_connection_opened"
@@ -146,10 +217,55 @@ def test_network_connections_and_state_portrait_open_dialogues(monkeypatch) -> N
     assert "4 active relations" in corpus
 
 
+def test_seeded_node_population_editor_requires_its_url_capability(monkeypatch, tmp_path) -> None:
+    monkeypatch.delenv("NOTION_TOKEN", raising=False)
+    monkeypatch.setenv("TAKEOVER_NODE_REGISTRY", str(tmp_path / "nodes.json"))
+    monkeypatch.setenv("TAKEOVER_NODE_MEDIA", str(tmp_path / "media"))
+    app = AppTest.from_file("app.py")
+    app.query_params["a"] = "ave"
+    app.query_params["node"] = "ave"
+    app.run(timeout=20)
+    assert not app.exception
+    corpus = " ".join(block.value for block in app.markdown)
+    assert "NODE STAGE · POPULATION / ACTIVE" in corpus
+    assert "This node is waiting for you." in corpus
+    assert "WRITE CAPABILITY REQUIRED TO INHABIT THIS NODE." in {item.value for item in app.caption}
+    assert "BIO / NOTE" not in {item.label for item in app.text_area}
+
+    app = AppTest.from_file("app.py")
+    app.secrets = {"takeover_identities": {"ave": {"capability": "invite-capability"}}}
+    app.query_params["a"] = "ave"
+    app.query_params["c"] = "invite-capability"
+    app.query_params["node"] = "ave"
+    app.run(timeout=20)
+    assert not app.exception
+    assert "BIO / NOTE" in {item.label for item in app.text_area}
+    assert "DROP IMAGE" in {item.label for item in app.get("file_uploader")}
+    assert "DROP ONE SAMPLE" in {item.label for item in app.get("file_uploader")}
+    assert "PRACTICE" in {item.label for item in app.text_input}
+
+    app = AppTest.from_file("app.py")
+    app.query_params["a"] = "kenneerik"
+    app.query_params["node"] = "ave"
+    app.run(timeout=20)
+    assert not app.exception
+    assert "This node is waiting for them." in " ".join(block.value for block in app.markdown)
+    assert "BIO / NOTE" not in {item.label for item in app.text_area}
+
+
 def test_tooltips_keep_readable_contrast_and_fit() -> None:
     assert '[data-baseweb="tooltip"]' in CSS
     assert "color:var(--paper)!important" in CSS
     assert "width:max-content!important" in CSS
+
+
+def test_dialog_button_labels_override_the_global_dark_paragraph_colour() -> None:
+    assert '[data-testid="stDialog"] [data-testid="stButton"] button p' in CSS
+    assert "color:#fafafa!important" in CSS
+    assert "background:#0d0f14!important" in CSS
+    assert "font-size:16px!important" in CSS
+    assert "min-height:44px" in CSS
+    assert all(colour in CSS for colour in ("#f5f5f2", "#b9bbc2", "#858894", "#171a21", "#434753", "#315f78"))
 
 
 def test_sidebar_has_a_visible_navigation_surface(monkeypatch) -> None:
@@ -157,7 +273,7 @@ def test_sidebar_has_a_visible_navigation_surface(monkeypatch) -> None:
     app = AppTest.from_file("app.py").run(timeout=20)
     assert not app.exception
     assert "TAKE OVER" in [title.value for title in app.sidebar.title]
-    assert {"PROCESS", "TIMELINE", "NEEDS", "RESOURCES", "VOICES"}.issubset(
+    assert {"PROCESS", "TIMELINE", "NEEDS", "RESOURCES", "ORDER / ART", "VOICES"}.issubset(
         {button.label for button in app.sidebar.button}
     )
     assert not any(button.label.startswith(("EN ", "ET ", "RU ")) for button in app.sidebar.button)
@@ -198,6 +314,22 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     assert len(app.get("plotly_chart")) == 1
     assert {metric.label for metric in app.metric} >= {"BUCKET OF DOUGH", "BUCKET OF GOLD", "TOTAL FILES"}
     assert any("OBSERVED INTENTION" in block.value for block in app.caption)
+    resources_corpus = " ".join(block.value for block in app.main.markdown)
+    assert "APPLICATION / OPEN" in resources_corpus
+    assert "APPLICATION / SUBMITTED · TIMESTAMP UNSET" in resources_corpus
+    assert all(label in resources_corpus for label in ("PEOPLE", "TIME", "MONEY", "SPACE", "MATERIAL", "STORAGE", "EQUIPMENT", "ATTENTION"))
+    assert "Ave · 2026-08-18 · willingness to invest; not committed funds" in resources_corpus
+    assert {button.label for button in app.main.button} >= {"BUY", "DONATE", "INVEST", "BET", "PLAY"}
+    assert all(
+        explanation in resources_corpus
+        for explanation in (
+            "Acquire a work and carry it into another context.",
+            "Give resources without claiming ownership or return.",
+            "Commit capacity to what the project may become.",
+            "Take a position on an uncertain outcome.",
+            "Enter the process and change its next move.",
+        )
+    )
     assert len(app.main.dataframe) == 0
     assert len(app.sidebar.dataframe) == 3
     assert any(control.label == "SCALING FACTOR · s" for control in app.sidebar.number_input)
@@ -206,6 +338,14 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     assert "BUCKET OF DOUGH" in sidebar_corpus
     assert "INVESTMENT INTENTIONS" in sidebar_corpus
     assert "TRAJECTORY EVENTS USED" in sidebar_corpus
+
+    app = AppTest.from_file("app.py")
+    app.query_params["view"] = "order-art"
+    app.run(timeout=20)
+    assert not app.exception
+    order_corpus = " ".join(block.value for block in app.main.markdown)
+    assert "ORDER / ART" in order_corpus
+    assert "No artwork is available to order yet." in order_corpus
 
 
 def test_developer_add_node_flow(monkeypatch) -> None:

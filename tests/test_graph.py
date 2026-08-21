@@ -36,12 +36,41 @@ def test_typed_entity_and_relation_are_rendered() -> None:
     assert "1.00" in html
 
 
+def test_ready_node_avatar_is_a_renderer_level_circular_image() -> None:
+    entity = Entity(
+        "ave", "person", "Ave",
+        metadata={"node_stage": "ready", "avatar": {"url": "https://example.test/original.jpg", "crop": {"x": 0.4, "y": 0.6, "scale": 1.2}}},
+    )
+    html = build_graph_html([entity], [])
+    assert "inhabited-node-avatar" in html
+    assert "https://example.test/original.jpg" in html
+    assert "border-radius:50%" in html
+
+
+def test_participant_context_survives_clicking_their_graph_node() -> None:
+    entities = [
+        Entity("mai_brit", "person", "Mai-Brit", metadata={"node_stage": "node_population"}),
+        Entity("ave", "person", "Ave", metadata={"node_stage": "node_population"}),
+    ]
+    html = build_graph_html(
+        entities, [], editable_node_id="mai_brit", write_capability="secret / value",
+    )
+    assert '?view=network&amp;node=mai_brit&amp;a=mai_brit&amp;c=secret%20%2F%20value' in html
+    assert 'node=ave&amp;a=mai_brit&amp;c=' not in html
+    assert "context-node" in html
+
+
 def test_rc0_graph_has_depth_structured_social_seed() -> None:
     entities, relations = with_rc0_seeds([], [])
     html = build_graph_html(entities, relations)
 
-    assert [entity.title for entity in entities[:4]] == ["KUMIORI", "Ave", "Mai-Brit", "Kenn-Eerik"]
+    assert [entity.title for entity in entities[:4]] == ["kumiori", "Ave", "Mai-Brit", "Kenn-Eerik"]
     assert entities[3].id == "kenneerik"
+    assert [entity.metadata["node_stage"] for entity in entities[:4]] == [
+        "node_population", "node_population", "node_population", "node_population",
+    ]
+    assert PRESEED_ENTITIES[0].metadata["node_stage"] == "node_population"
+    assert PRESEED_ENTITIES[1].metadata["node_stage"] == "invited"
     assert [entity.status for entity in entities] == [
         "active", "active", "active", "active",
         "latent_known", "latent_private", "unknown", "unknown",

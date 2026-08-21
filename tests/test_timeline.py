@@ -40,4 +40,5 @@ def test_histropedia_uses_every_dated_yaml_primitive() -> None:
     assert all({"year", "month", "day"} == set(article["from"]) for article in articles)
     rendered = build_histropedia_html(payload, "window.Histropedia={Timeline:function(){this.load=()=>{}}}")
     assert 'id="histropedia-timeline"' in rendered
+    assert '"font": "normal 11px Courier New, monospace"' in rendered
     assert "timeline.load(articles)" in rendered

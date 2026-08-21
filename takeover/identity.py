@@ -79,6 +79,14 @@ def invitation_identity(raw_activation: str, capability: str, identities: Mappin
     return participant if expected and secrets.compare_digest(expected, capability) else None
 
 
+def node_write_identity(participant: str, capability: str, identities: Mapping[str, Mapping[str, str]]) -> str | None:
+    """Authorize one participant-scoped node write without authenticating broader identity."""
+    if participant not in identities:
+        return None
+    expected = str(identities[participant].get("capability", ""))
+    return participant if expected and secrets.compare_digest(expected, capability.strip()) else None
+
+
 def resolve_drop_token(raw: str, identities: Mapping[str, Mapping[str, str]]) -> str | None:
     """Resolve one participant-scoped drop parameter to one participant."""
     candidate = raw.strip()

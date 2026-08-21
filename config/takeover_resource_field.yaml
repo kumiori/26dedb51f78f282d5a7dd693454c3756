@@ -1,0 +1,66 @@
+schema_version: takeover-resource-field/v1
+application:
+  state: open
+  submitted_at: null
+resources:
+  - id: people
+    label: PEOPLE
+    state: secured
+    display: active kernel
+    provenance:
+      who: initial contributors
+      when: 2026-08-19
+      condition: active seed configuration
+  - id: time
+    label: TIME
+    state: offered
+    display: offered
+    provenance:
+      who: initial contributors
+      when: 2026-08-19
+      condition: application construction
+  - id: money
+    label: MONEY
+    state: intention
+    display: intention
+    provenance:
+      who: Ave
+      when: 2026-08-18
+      condition: willingness to invest; not committed funds
+  - id: space
+    label: SPACE
+    state: conditional
+    display: conditional
+    provenance:
+      who: Fotografiska
+      when: null
+      condition: wall and exhibition space depend on selection and agreement
+  - id: material
+    label: MATERIAL
+    state: secured
+    display: photographic material
+    provenance:
+      who: kumiori
+      when: 2026-08-18
+      condition: Baltic photographic material exists
+  - id: storage
+    label: STORAGE
+    state: secured
+    display: live bucket
+    provenance:
+      who: encrypted contributors
+      when: live
+      condition: ciphertext only; plaintext unavailable
+  - id: equipment
+    label: EQUIPMENT
+    state: open
+    display: open
+    provenance: null
+  - id: attention
+    label: ATTENTION
+    state: growing
+    display: growing
+    provenance:
+      who: invitation activations
+      when: live
+      condition: session-visible until persistent event storage exists
