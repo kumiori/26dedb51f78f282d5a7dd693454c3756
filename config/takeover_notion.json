@@ -6,7 +6,7 @@
   "parent_page_url": "https://app.notion.com/p/3c08547ffe9a814e919ad2baf9e94f9e",
   "databases": {
     "stages": {"database_id": "6789dbf1-7a6a-404f-b7e2-3f3a9d9ac1b8", "data_source_id": "80948173-b977-41b1-8e4b-d53050e6f76f"},
-    "persons": {"database_id": "4d5c988b-c9c7-4d68-8c88-6b0d4306fa9e", "data_source_id": "d8dc5e70-d50d-48df-a0f1-4209c3c7e499"},
+    "players": {"database_id": "4d5c988b-c9c7-4d68-8c88-6b0d4306fa9e", "data_source_id": "d8dc5e70-d50d-48df-a0f1-4209c3c7e499"},
     "photographs": {"database_id": "fd619887-59bf-4d15-9fb2-578b6559f473", "data_source_id": "aecb4ab9-41b1-4ab1-99a2-4f76d887d908"},
     "audio": {"database_id": "e92c1b35-f9d2-43ee-a90c-b170e7ec1dae", "data_source_id": "f856da75-c63d-4786-add8-aa6af4a2771c"},
     "places": {"database_id": "993de4ac-bc9a-459d-b401-53f7fa346be3", "data_source_id": "d19ca48a-8754-47d0-a9df-fc9143066cc9"},

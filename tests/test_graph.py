@@ -1,6 +1,6 @@
 import re
 
-from takeover.graph import build_graph_html, clipped_segment
+from takeover.graph import build_graph_html, clipped_segment, generated_positions
 from takeover.models import Entity, Relation
 from takeover.registry import PRESEED_ENTITIES, SEED_ENTITIES, SEED_RELATIONS, with_rc0_seeds
 
@@ -17,6 +17,15 @@ def test_empty_graph_exposes_only_start_hub() -> None:
     ratio = re.search(r"<b>([^<]+)</b> CONNECTIVITY", html)
     assert ratio and ratio.group(1) == "0.00"
     assert build_graph_html([], []) == html
+
+
+def test_generated_layout_is_stable_and_requires_no_stored_coordinates() -> None:
+    entities = [Entity("b", "person", "B"), Entity("a", "person", "A"), Entity("c", "person", "C")]
+    first = generated_positions(entities)
+    second = generated_positions(list(reversed(entities)))
+    assert first == second
+    assert set(first) == {"a", "b", "c"}
+    assert all(0 < x < 1 and 0 < y < 1 for x, y in first.values())
 
 
 def test_edges_are_clipped_to_circular_node_boundaries() -> None:

@@ -36,7 +36,7 @@ def select(*options: tuple[str, str]) -> dict[str, Any]:
 STATUS = select(("draft", "gray"), ("active", "green"), ("dormant", "yellow"), ("archived", "brown"))
 DATABASES: dict[str, dict[str, Any]] = {
     "stages": {"title": "Takeover_Stages", "properties": {"Name": {"title": {}}, "Stage ID": rich(), "Order": number(), "Status": select(("dormant", "gray"), ("current", "green"), ("complete", "blue")), "Description": rich()}},
-    "persons": {"title": "Takeover_Persons", "properties": {"Name": {"title": {}}, "Person ID": rich(), "Label": rich(), "Status": STATUS, "Image URL": url(), "Metadata JSON": rich(), "Created At": date_prop()}},
+    "players": {"title": "Takeover_Players", "properties": {"Name": {"title": {}}, "Person ID": rich(), "Label": rich(), "Status": STATUS, "Network State": select(("active", "green"), ("latent_known", "yellow"), ("latent_private", "gray"), ("unknown", "default")), "Visibility": select(("public", "green"), ("private", "gray"), ("anonymous", "yellow")), "Image URL": url(), "Bio": rich(), "Practice": rich(), "Sample URL": url(), "Metadata JSON": rich(), "Created At": date_prop()}},
     "photographs": {"title": "Takeover_Photographs", "properties": {"Name": {"title": {}}, "Photograph ID": rich(), "Image URL": url(), "Status": STATUS, "Metadata JSON": rich(), "Created At": date_prop()}},
     "audio": {"title": "Takeover_Audio", "properties": {"Name": {"title": {}}, "Audio ID": rich(), "Source URL": url(), "Status": STATUS, "Metadata JSON": rich(), "Created At": date_prop()}},
     "places": {"title": "Takeover_Places", "properties": {"Name": {"title": {}}, "Place ID": rich(), "Description": rich(), "Coordinates": rich(), "Status": STATUS, "Metadata JSON": rich()}},
@@ -47,16 +47,16 @@ DATABASES: dict[str, dict[str, Any]] = {
 }
 
 RELATIONS: dict[str, dict[str, str]] = {
-    "persons": {"Stage": "stages"},
+    "players": {"Stage": "stages"},
     "places": {"Stages": "stages"},
-    "photographs": {"Stage": "stages", "Creators": "persons", "Depicts": "persons", "Place": "places", "Linked Audio": "audio"},
-    "audio": {"Stage": "stages", "Speakers": "persons", "Creators": "persons", "Place": "places", "Linked Photographs": "photographs"},
-    "timeline_events": {"Stage": "stages", "Related Persons": "persons", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places"},
-    "necessities": {"Stage": "stages", "Related Persons": "persons", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places"},
-    "interactions": {"Stage": "stages", "Players": "persons", "Related Persons": "persons", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places", "Timeline Event": "timeline_events"},
+    "photographs": {"Stage": "stages", "Creators": "players", "Depicts": "players", "Place": "places", "Linked Audio": "audio"},
+    "audio": {"Stage": "stages", "Speakers": "players", "Creators": "players", "Place": "places", "Linked Photographs": "photographs"},
+    "timeline_events": {"Stage": "stages", "Related Persons": "players", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places"},
+    "necessities": {"Stage": "stages", "Related Persons": "players", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places"},
+    "interactions": {"Stage": "stages", "Players": "players", "Related Persons": "players", "Related Photographs": "photographs", "Related Audio": "audio", "Related Places": "places", "Timeline Event": "timeline_events"},
     "relations": {
-        "Stage": "stages", "Source Person": "persons", "Source Photograph": "photographs", "Source Audio": "audio", "Source Place": "places", "Source Timeline Event": "timeline_events", "Source Necessity": "necessities",
-        "Target Person": "persons", "Target Photograph": "photographs", "Target Audio": "audio", "Target Place": "places", "Target Timeline Event": "timeline_events", "Target Necessity": "necessities",
+        "Stage": "stages", "Source Person": "players", "Source Photograph": "photographs", "Source Audio": "audio", "Source Place": "places", "Source Timeline Event": "timeline_events", "Source Necessity": "necessities",
+        "Target Person": "players", "Target Photograph": "photographs", "Target Audio": "audio", "Target Place": "places", "Target Timeline Event": "timeline_events", "Target Necessity": "necessities",
     },
 }
 

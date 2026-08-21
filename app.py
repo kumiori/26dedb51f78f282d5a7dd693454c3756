@@ -14,7 +14,6 @@ import secrets
 import uuid
 
 import streamlit as st
-import streamlit.components.v1 as components
 
 from takeover.analytics import emit_google_event, emit_invitation_events, normalise_activation
 from takeover.browser_encrypt import encrypted_drop
@@ -28,13 +27,13 @@ from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
-from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, apply_inhabited_nodes, node_stage
+from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, node_stage
 from takeover.node_population import load_population_registry, resolve_population_participant
 from takeover.registry import SessionRegistry, with_rc0_seeds
 from takeover.resource_field import load_resource_field, resource_rows
 from takeover.resources import build_combined_resources_figure, load_resources
 from takeover.style import CSS
-from takeover.timeline import build_histropedia_html, build_time_mapping_figure, build_time_mapping_rows, load_trajectory
+from takeover.timeline import build_time_mapping_figure, build_time_mapping_rows, build_timeline_figure, load_trajectory
 
 
 ROOT = Path(__file__).resolve().parent
@@ -43,7 +42,6 @@ RESOURCES = ROOT / "config" / "takeover_resources.yaml"
 RESOURCE_FIELD = ROOT / "config" / "takeover_resource_field.yaml"
 CALL = ROOT / "config" / "takeover_call.yaml"
 LISTENING = ROOT / "config" / "takeover_listening.yaml"
-HISTROPEDIA = ROOT / "assets" / "vendor" / "histropedia.umd.min.js"
 ENCRYPTED_REGISTRY = Path(os.getenv("TAKEOVER_ENCRYPTED_REGISTRY", ROOT / "data" / "encrypted_storage_v1.json"))
 NODE_POPULATION = load_population_registry(ROOT / "config" / "takeover_node_population.yaml")
 NODE_REGISTRY = Path(os.getenv("TAKEOVER_NODE_REGISTRY", ROOT / "data" / "inhabited_nodes_v1.json"))
@@ -819,8 +817,7 @@ def render_sidebar(current: str, mode: str) -> None:
 
 
 def render_network(repo, mode: str) -> None:
-    entities, relations = with_rc0_seeds(repo.list_entities(), repo.list_relations())
-    entities = apply_inhabited_nodes(entities, _nodes_for_render(FileNodeStore(NODE_REGISTRY)))
+    entities, relations = repo.list_entities(), repo.list_relations()
     process = "".join(
         f'<p>{html.escape(t(key))}</p>'
         for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
@@ -862,6 +859,10 @@ def render_network(repo, mode: str) -> None:
         )
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
+        st.caption(
+            "GRAPH SOURCE · DATABASE / GENERATED · "
+            f"{len(entities)} NODES · {len(relations)} RELATIONS"
+        )
         write_capability = ""
         if _node_write_participant(current_participant_id) == current_participant_id:
             write_capability = str(st.query_params.get("c", "") or "")
@@ -880,7 +881,8 @@ def render_network(repo, mode: str) -> None:
         '<section class="takeover-three-blocks">'
         f'<article class="takeover-process">{process}</article>'
         f'<article class="takeover-manifesto">{manifesto}</article>'
-        f'<article class="takeover-entry"><strong>{html.escape(t("landing_action"))}</strong><span>{html.escape(t("open_node"))}</span></article>'
+        f'<article class="takeover-entry"><strong>{html.escape(t("landing_action"))}</strong>'
+        f'<span>{html.escape(t("open_node"))}</span>{footer_html()}</article>'
         '</section>',
         unsafe_allow_html=True,
     )
@@ -967,12 +969,13 @@ def render_timeline() -> None:
     st.markdown(f'<div class="timeline-phase">{t("phase")}: {t("application")}</div>', unsafe_allow_html=True)
     payload = load_trajectory(TRAJECTORY)
     st.caption(t("timeline_proposition"))
-    components.html(
-        build_histropedia_html(payload, HISTROPEDIA.read_text(encoding="utf-8")),
-        height=650,
-        scrolling=False,
+    st.plotly_chart(
+        build_timeline_figure(payload),
+        width="stretch",
+        theme=None,
+        config={"displayModeBar": False, "scrollZoom": False},
     )
-    st.caption(f'HISTROPEDIAJS 1.5.0 · {t("timeline_source")}')
+    st.caption(f'STATIC · {t("timeline_source")}')
 
 
 def render_necessities(repo) -> None:
@@ -1068,19 +1071,18 @@ def render_order_art() -> None:
     )
 
 
-def render_footer() -> None:
+def footer_html() -> str:
     telegram_icon = (
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M21.5 3.2 18.3 19c-.2 1.1-.9 1.4-1.8.9l-4.9-3.6-2.4 2.3c-.3.3-.5.5-1 .5l.4-5 9.1-8.2c.4-.4-.1-.6-.6-.2L5.8 12.8 1 11.3c-1-.3-1.1-1 .2-1.5L20 2.5c.9-.3 1.7.2 1.5.7Z"/></svg>'
     )
     filebase_icon = (
         '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="m12 2 8 4.3v11.4L12 22l-8-4.3V6.3L12 2Zm0 2.3L6.2 7.4 12 10.6l5.8-3.2L12 4.3Zm-6 5v7.2l5 2.7V12L6 9.3Zm7 9.9 5-2.7V9.3L13 12v7.2Z"/></svg>'
     )
-    st.markdown(
+    return (
         '<footer class="takeover-footer"><span>FOLLOW THE SIGNAL</span><nav>'
         f'<a href="https://t.me/takeover_process_bot" target="_blank" rel="noopener noreferrer" aria-label="Open TAKE OVER on Telegram">{telegram_icon}<strong>TELEGRAM</strong><small>CHANNEL / BOT ↗</small></a>'
         f'<a href="https://console.filebase.com/buckets/takeover-fotografiska" target="_blank" rel="noopener noreferrer" aria-label="Open the TAKE OVER Filebase bucket">{filebase_icon}<strong>FILEBASE</strong><small>BUCKET ↗</small></a>'
-        '</nav></footer>',
-        unsafe_allow_html=True,
+        '</nav></footer>'
     )
 
 
@@ -1194,4 +1196,3 @@ elif current_view == "order-art":
     render_order_art()
 else:
     render_voices()
-render_footer()

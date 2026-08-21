@@ -4,11 +4,29 @@ from __future__ import annotations
 
 import html
 import json
-from math import atan2, degrees, hypot
+from math import atan2, cos, degrees, hypot, pi, sin
 from urllib.parse import quote
 from urllib.parse import urlparse
 
 from .models import Entity, Relation, entity_type_label
+
+
+def generated_positions(entities: list[Entity]) -> dict[str, tuple[float, float]]:
+    """Generate a stable database-independent layout without persisted coordinates."""
+    ordered = sorted(entities, key=lambda item: item.id)
+    count = len(ordered)
+    if not count:
+        return {}
+    positions: dict[str, tuple[float, float]] = {}
+    for index, entity in enumerate(ordered):
+        ring = index // 12
+        ring_items = min(12, count - ring * 12)
+        ring_index = index % 12
+        angle = 2 * pi * ring_index / ring_items + .31 + ring * .19
+        radius_x = max(.20, .39 - ring * .11)
+        radius_y = max(.17, .33 - ring * .09)
+        positions[entity.id] = (.47 + radius_x * cos(angle), .48 + radius_y * sin(angle))
+    return positions
 
 
 def clipped_segment(
@@ -50,23 +68,10 @@ def build_graph_html(
     write_capability: str = "",
 ) -> str:
     width, height = 920, 590
-    # Stable normalized graph coordinates. Topology and relative placement do
-    # not change with viewport size; the entire field scales as one geometry.
-    semantic_positions = {
-        "kumiori": (.12, .48),
-        "ave": (.43, .16),
-        "mai_brit": (.68, .50),
-        "kenneerik": (.28, .78),
-        "graziano": (.83, .16),
-        "michela": (.10, .20),
-        "latent_01": (.86, .78),
-        "latent_02": (.08, .84),
+    positions = {
+        entity_id: (px * width, py * height)
+        for entity_id, (px, py) in generated_positions(entities).items()
     }
-    fallback_positions = ((.28, .25), (.72, .28), (.73, .68), (.27, .70), (.85, .42), (.14, .48))
-    positions: dict[str, tuple[float, float]] = {}
-    for index, entity in enumerate(entities):
-        px, py = semantic_positions.get(entity.id, fallback_positions[index % len(fallback_positions)])
-        positions[entity.id] = (px * width, py * height)
 
     entity_status = {entity.id: entity.status for entity in entities}
     lines: list[str] = []
