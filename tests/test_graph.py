@@ -135,6 +135,13 @@ def test_participant_context_survives_clicking_their_graph_node() -> None:
     assert "context-node" in html
 
 
+def test_open_invitation_survives_start_here_graph_click_without_becoming_capability() -> None:
+    html = build_graph_html([], [], invitation_code="K7M4")
+
+    assert "?view=network&amp;door=access&amp;i=K7M4" in html
+    assert "&amp;c=K7M4" not in html
+
+
 def test_rc0_graph_has_depth_structured_social_seed() -> None:
     entities, relations = with_rc0_seeds([], [])
     html = build_graph_html(entities, relations)

@@ -109,6 +109,7 @@ def build_graph_html(
     editable_node_id: str | None = None,
     write_capability: str = "",
     connectivity_rows: list[dict[str, Any]] | None = None,
+    invitation_code: str = "",
 ) -> str:
     width, height = 920, 590
     positions = {
@@ -226,6 +227,9 @@ def build_graph_html(
     )
     payload = json.dumps({"nodes": count, "connections": connection_count, "states": state_counts})
     connectivity_plot = _connectivity_plot_html(connectivity_rows or [])
+    invitation_query = (
+        f"&amp;i={quote(invitation_code, safe='')}" if invitation_code else ""
+    )
 
     return f"""
     <base target="_top">
@@ -287,7 +291,7 @@ def build_graph_html(
     <div class="graph-shell">
       <div class="field" data-registry='{html.escape(payload)}'>
         {''.join(lines)}
-        <a class="hub" href="?view=network&amp;door=access" target="_top" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
+        <a class="hub" href="?view=network&amp;door=access{invitation_query}" target="_top" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
         {''.join(nodes)}
       </div>
       <div class="graph-footer">

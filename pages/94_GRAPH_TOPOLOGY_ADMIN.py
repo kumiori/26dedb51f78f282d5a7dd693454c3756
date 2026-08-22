@@ -8,7 +8,6 @@ from datetime import datetime
 from pathlib import Path
 import re
 from urllib.parse import urlsplit, urlunsplit
-import uuid
 
 import streamlit as st
 
@@ -19,7 +18,8 @@ from takeover.models import Relation, STAGES
 from takeover.node_population import PlayerPopulation, make_person_id
 from takeover.notion import NotionRegistry
 from takeover.player_invitations import (
-    create_player_invitation,
+    create_open_invitation,
+    invite_entry_url,
 )
 
 
@@ -123,51 +123,39 @@ with st.sidebar:
         format_func=lambda value: player_names.get(value, "NO PLAYER AVAILABLE") if value else "NO PLAYER AVAILABLE",
         disabled=not existing_ids,
     )
-    invite_already_collaborating = st.checkbox(
-        "INVITATION / ALREADY COLLABORATING",
-        value=False,
-    )
-    invite_label = st.text_input("INVITATION / LABEL", value="Person • Alien")
-    invite_project_stage = st.selectbox(
-        "INVITATION / PROJECT STAGE",
-        STAGES,
-        index=STAGES.index("application"),
-    )
-    invite_node_stage = st.selectbox(
-        "INVITATION / NODE STAGE",
-        NODE_STAGES,
-        index=NODE_STAGES.index("invited"),
-    )
-    invite_network_state = st.selectbox(
-        "INVITATION / NETWORK STATE",
-        NETWORK_STATES,
-        index=NETWORK_STATES.index("latent_private"),
-    )
-    invite_visibility = st.selectbox(
-        "INVITATION / VISIBILITY",
-        VISIBILITIES,
-        index=VISIBILITIES.index("public"),
-    )
-    invite_status = st.selectbox(
-        "INVITATION / STATUS",
-        REGISTRY_STATUSES,
-        index=REGISTRY_STATUSES.index("draft"),
-    )
-    st.caption("THESE VALUES ARE APPLIED TO THE SIMPLIFIED INVITATION FORM.")
+    st.caption("AN INVITATION RECORDS AN OPEN DOOR. IT DOES NOT CREATE A PLAYER OR GRANT EDIT RIGHTS.")
 
-st.header("INVITE A PLAYER")
+st.header("CREATE INVITATION")
 st.write(
-    "Create a quiet, latent node now. The invited person receives one private link, "
-    "inhabits the node with a few details, and then sees the next upload instructions."
+    "Create an open invitation without naming or pre-creating its future player. "
+    "Identity and ownership capability are created only if somebody enters."
 )
-with st.form("topology-invite-player"):
-    invite_name = st.text_input("INVITED PLAYER / NAME")
-    invite_practice = st.text_input("PRACTICE / OPTIONAL")
+st.info(
+    "INVITATION URL CONTRACT · SEND ?i=CODE. RESERVE ?c=SECRET FOR AN EXISTING PLAYER CAPABILITY."
+)
+st.text_area(
+    "INVITATION MESSAGE TEMPLATE",
+    value=(
+        "TAKE OVER / OPEN INVITATION\n\n"
+        "[INVITER] OPENED THIS DOOR FOR YOU · [CODE]\n\n"
+        "Enter through START HERE:\n\n"
+        "[GENERATED WEBSITE URL/?i=CODE]\n\n"
+        "The invitation records how you arrived. You create your own identity only if you enter."
+    ),
+    height=250,
+    disabled=True,
+)
+with st.form("topology-create-invitation"):
+    invite_note = st.text_area("OPTIONAL NOTE")
+    invite_entry_hint = st.selectbox(
+        "OPTIONAL ENTRY HINT",
+        ("open", "performance", "sound", "artist", "technical"),
+    )
     st.markdown(
         f"**INVITED BY** · {player_names.get(invite_inviter_id, 'NOT SELECTED')}  \n"
-        f"**DEFAULT STATE** · {invite_node_stage.upper()} · {invite_network_state.upper()} · {invite_visibility.upper()}"
+        "**MODE** · SINGLE USE · **PROJECT STAGE** · APPLICATION"
     )
-    invite_confirm = st.checkbox("I UNDERSTAND THIS CREATES A LIVE INVITED PLAYER")
+    invite_confirm = st.checkbox("I UNDERSTAND THIS CREATES A LIVE OPEN INVITATION")
     invite_infrastructure_blockers = []
     if not store:
         invite_infrastructure_blockers.append("NOTION CONNECTION")
@@ -178,7 +166,7 @@ with st.form("topology-invite-player"):
     if invite_infrastructure_blockers:
         st.warning("INVITATION BLOCKED · REQUIRED: " + " · ".join(invite_infrastructure_blockers))
     create_invitation = st.form_submit_button(
-        "CREATE PLAYER + INVITATION",
+        "CREATE INVITE",
         type="primary",
         width="stretch",
         disabled=bool(invite_infrastructure_blockers),
@@ -186,40 +174,27 @@ with st.form("topology-invite-player"):
 
 if create_invitation:
     try:
-        if not invite_name.strip():
-            raise ValueError("Invited player name is required.")
         if not invite_confirm:
-            raise ValueError("Confirm the live invited-player write.")
-        request_id = st.session_state.setdefault(
-            "topology-invitation-request-id", uuid.uuid4().hex
-        )
-        result = create_player_invitation(
+            raise ValueError("Confirm the live invitation write.")
+        result = create_open_invitation(
             store,
-            name=invite_name,
-            inviter_id=invite_inviter_id,
-            practice=invite_practice,
+            invited_by=invite_inviter_id,
+            inviter_name=player_names.get(invite_inviter_id, invite_inviter_id),
             website_url=invite_website_url,
-            request_id=request_id,
+            note=invite_note,
+            entry_hint=invite_entry_hint,
             clock=lambda: datetime.now().astimezone(),
-            already_collaborating=invite_already_collaborating,
-            label=invite_label,
-            project_stage=invite_project_stage,
-            node_stage=invite_node_stage,
-            status=invite_status,
-            network_state=invite_network_state,
-            visibility=invite_visibility,
         )
         st.session_state["topology-invitation-result"] = {
             "message": result.message,
-            "code": result.code,
+            "code": result.invitation.code,
             "url": result.url,
-            "node": result.player,
-            "relations": list(result.relation_readbacks),
+            "invitation": result.invitation,
         }
-        record_event(st.session_state, "event_invite_generated", result.player["player_id"], request_id)
-        for relation in result.relations:
-            record_event(st.session_state, "event_relation_created", relation.id, relation.type)
-        st.session_state["topology-invitation-request-id"] = uuid.uuid4().hex
+        record_event(
+            st.session_state, "event_invite_generated",
+            result.invitation.code, result.invitation.invited_by,
+        )
     except Exception as exc:
         st.session_state["topology-invitation-result"] = {
             "error": f"{type(exc).__name__}: {exc}"
@@ -237,14 +212,10 @@ if invitation_result:
             height=260,
         )
         st.caption(
-            "THE FIVE-CHARACTER CODE HELPS THE PERSON RECOGNISE THE INVITATION. "
-            "THE PRIVATE LINK ALSO CARRIES THE UNGUESSABLE, PLAYER-SCOPED WRITE CAPABILITY."
+            "THIS CODE RECORDS PROVENANCE ONLY. IT DOES NOT IDENTIFY A PLAYER OR GRANT EDIT RIGHTS."
         )
         with st.expander("INVITATION WRITE RESULT"):
-            st.json({
-                "node": invitation_result["node"],
-                "relations": invitation_result["relations"],
-            })
+            st.json(invitation_result["invitation"])
 
 st.divider()
 
@@ -353,13 +324,84 @@ if result:
         st.metric("RELATIONS WRITTEN", len(result["relations"]))
 
 st.divider()
-st.header("NOTION GRAPH / 3D")
+st.header("CURRENT GRAPH / TABLES")
+st.subheader("INVITATIONS")
+try:
+    invitations = store.list_invitations() if store else []
+except Exception as exc:
+    invitations = []
+    st.error(f"INVITATION READ FAILED · {type(exc).__name__}: {exc}")
+st.dataframe([
+    {
+        "code": invitation.code,
+        "invited_by": player_names.get(invitation.invited_by, invitation.invited_by),
+        "status": invitation.status,
+        "created_at": invitation.created_at.isoformat(),
+        "entry_hint": invitation.entry_hint,
+        "note": invitation.note,
+        "consumed_by": invitation.consumed_by,
+        "invite_url": (
+            invite_entry_url(invite_website_url, code=invitation.code)
+            if invite_website_url.strip() else ""
+        ),
+    }
+    for invitation in invitations
+], hide_index=True, width="stretch")
+
+st.subheader("PLAYER CAPABILITIES")
+st.caption(
+    "CAPABILITIES AUTHORISE EXISTING PLAYERS. ONLY VERIFIER STATUS IS STORED; "
+    "RAW ?c= SECRETS CANNOT BE RECOVERED FROM NOTION."
+)
+player_table = []
+for row in existing_players:
+    metadata = dict(row.get("metadata") or {})
+    capability = dict(metadata.get("capability") or {})
+    player_table.append({
+        "name": row.get("name", ""),
+        "person_id": row.get("player_id", ""),
+        "node_stage": metadata.get("node_stage", ""),
+        "project_stage": row.get("project_stage", ""),
+        "status": row.get("status", ""),
+        "network_state": row.get("network_state", ""),
+        "visibility": row.get("visibility", ""),
+        "practice": row.get("practice", ""),
+        "capability_status": capability.get("status", "none"),
+        "capability_issued_at": capability.get("issued_at", ""),
+    })
+st.dataframe(player_table, hide_index=True, width="stretch")
+
+st.subheader("RELATIONS")
 try:
     graph_entities = store.list_entities() if store else []
     graph_relations = store.list_relations() if store else []
 except Exception as exc:
     graph_entities, graph_relations = [], []
     st.error(f"GRAPH READ FAILED · {type(exc).__name__}: {exc}")
+st.dataframe([
+    {
+        "source": relation.source,
+        "relation": relation.type,
+        "target": relation.target,
+        "stage": relation.stage,
+        "status": relation.status,
+    }
+    for relation in graph_relations
+], hide_index=True, width="stretch")
+
+st.subheader("INVITATION PROCEDURE")
+st.markdown(
+    "1. Select **INVITED BY** and the invitation defaults in the sidebar.  \n"
+    "2. Add an optional note or entry hint; no friend name is required.  \n"
+    "3. Confirm the live write, then press **CREATE INVITE** once.  \n"
+    "4. Copy and send the generated **?i=CODE** URL.  \n"
+    "5. The invitee enters through START HERE and creates their own player.  \n"
+    "6. At persistence, the app creates their Person ID and **?c= ownership capability**, "
+    "writes the invited relation, and consumes this invitation."
+)
+
+st.divider()
+st.header("NOTION GRAPH / 3D")
 st.caption(f"{len(graph_entities)} NODES · {len(graph_relations)} RELATIONS · GENERATED POSITION · READ ONLY")
 st.plotly_chart(
     build_graph_3d_figure(graph_entities, graph_relations),

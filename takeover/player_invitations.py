@@ -13,6 +13,7 @@ from urllib.parse import urlencode
 
 CODE_ALPHABET = "23456789ABCDEFGHJKLMNPQRSTUVWXYZ"
 CODE_LENGTH = 5
+INVITE_CODE_PATTERN = re.compile(r"[23456789ABCDEFGHJKLMNPQRSTUVWXYZ]{4,8}")
 
 
 @dataclass(frozen=True)
@@ -21,6 +22,46 @@ class PlayerResolution:
     person_id: str | None = None
     player: dict[str, Any] | None = None
     matches: int = 0
+
+
+@dataclass(frozen=True)
+class InvitationRecord:
+    code: str
+    invited_by: str
+    created_at: datetime
+    status: str = "open"
+    note: str = ""
+    entry_hint: str = "open"
+    mode: str = "single"
+    project_stage: str = "application"
+    consumed_by: str = ""
+    consumed_at: str = ""
+
+    def __post_init__(self) -> None:
+        if not INVITE_CODE_PATTERN.fullmatch(self.code.strip().upper()):
+            raise ValueError("Invitation code must contain 4–8 unambiguous characters.")
+        if not self.invited_by.strip():
+            raise ValueError("Invitation must identify its inviter.")
+        if self.created_at.tzinfo is None or self.created_at.utcoffset() is None:
+            raise ValueError("Invitation creation time must be timezone-aware.")
+        if self.status not in {"open", "consumed", "revoked"}:
+            raise ValueError("Unsupported invitation status.")
+        if self.mode not in {"single", "pass"}:
+            raise ValueError("Unsupported invitation mode.")
+
+
+@dataclass(frozen=True)
+class InvitationResolution:
+    status: str
+    invitation: InvitationRecord | None = None
+    matches: int = 0
+
+
+@dataclass(frozen=True)
+class InvitationResult:
+    invitation: InvitationRecord
+    url: str
+    message: str
 
 @dataclass(frozen=True)
 class PlayerInvitationResult:
@@ -42,6 +83,84 @@ def create_invitation_credentials() -> tuple[str, str, str]:
     code = "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
     capability = secrets.token_urlsafe(24)
     return code, capability, capability_verifier(capability)
+
+
+def create_invite_code() -> str:
+    return "".join(secrets.choice(CODE_ALPHABET) for _ in range(CODE_LENGTH))
+
+
+def invite_entry_url(base_url: str, *, code: str) -> str:
+    base = base_url.strip().rstrip("/")
+    if not base.startswith(("https://", "http://")):
+        raise ValueError("Website URL must begin with http:// or https://.")
+    clean_code = code.strip().upper()
+    if not INVITE_CODE_PATTERN.fullmatch(clean_code):
+        raise ValueError("Invitation code is malformed.")
+    return f"{base}/?{urlencode({'i': clean_code})}"
+
+
+def invite_entry_message(inviter_name: str, code: str, url: str) -> str:
+    return (
+        "TAKE OVER / OPEN INVITATION\n\n"
+        f"{inviter_name.strip().upper()} OPENED THIS DOOR FOR YOU · {code.strip().upper()}\n\n"
+        "Enter through START HERE:\n\n"
+        f"{url}\n\n"
+        "The invitation records how you arrived. You create your own identity only if you enter."
+    )
+
+
+def create_open_invitation(
+    store: Any,
+    *,
+    invited_by: str,
+    inviter_name: str,
+    website_url: str,
+    note: str,
+    entry_hint: str,
+    clock: Any,
+    code_factory: Any = create_invite_code,
+) -> InvitationResult:
+    created_at = clock()
+    invitation = InvitationRecord(
+        code=code_factory().strip().upper(),
+        invited_by=invited_by.strip(),
+        created_at=created_at,
+        note=note.strip(),
+        entry_hint=entry_hint.strip() or "open",
+    )
+    persisted = store.create_invitation(invitation)
+    url = invite_entry_url(website_url, code=persisted.code)
+    return InvitationResult(
+        invitation=persisted,
+        url=url,
+        message=invite_entry_message(inviter_name, persisted.code, url),
+    )
+
+
+def resolve_invitation(
+    store: Any, code: str, *, registry_status: str
+) -> InvitationResolution:
+    if registry_status == "unavailable":
+        return InvitationResolution("registry_unavailable")
+    if registry_status == "degraded":
+        return InvitationResolution("registry_degraded")
+    candidate = code.strip().upper()
+    if not INVITE_CODE_PATTERN.fullmatch(candidate):
+        return InvitationResolution("malformed")
+    try:
+        matches = store.find_invitations_by_code(candidate)
+    except Exception:
+        return InvitationResolution("registry_degraded")
+    if not matches:
+        return InvitationResolution("unknown")
+    if len(matches) != 1:
+        return InvitationResolution("integrity_error", matches=len(matches))
+    invitation = matches[0]
+    if invitation.status == "revoked":
+        return InvitationResolution("revoked", invitation, 1)
+    if invitation.status == "consumed" and invitation.mode == "single":
+        return InvitationResolution("consumed", invitation, 1)
+    return InvitationResolution("resolved", invitation, 1)
 
 
 def capability_verifier(capability: str) -> str:

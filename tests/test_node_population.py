@@ -33,6 +33,17 @@ def test_population_state_allows_partial_save_but_only_completes_all_four_fields
 
     assert not population_state("", "", "", "").can_save
 
+    for values in (
+        ("avatar", "", "", ""),
+        ("", "bio", "", ""),
+        ("", "", "practice", ""),
+        ("", "", "", "sample"),
+    ):
+        state = population_state(*values)
+        assert state.can_save
+        assert not state.complete
+        assert state.node_stage == "node_population"
+
 
 def test_activation_aliases_resolve_to_canonical_seeded_node_ids() -> None:
     registry = load_population_registry(ROOT / "config" / "takeover_node_population.yaml")

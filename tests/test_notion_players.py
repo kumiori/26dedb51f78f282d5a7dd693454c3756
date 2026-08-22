@@ -1,10 +1,15 @@
 from copy import deepcopy
+from datetime import datetime, timezone
 import hashlib
 from pathlib import Path
 
 from takeover.node_population import PlayerPopulation, make_person_id
 from takeover.notion import NotionRegistry
-from takeover.player_invitations import create_player_invitation, resolve_capability
+from takeover.player_invitations import (
+    InvitationRecord,
+    create_player_invitation,
+    resolve_capability,
+)
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -215,6 +220,36 @@ def test_invitation_capability_is_structured_and_never_projected_publicly() -> N
 
     assert resolved.player and resolved.player["player_id"] == "invited-player"
     assert "capability" not in entity.metadata
+
+
+def test_open_invitation_persists_without_target_then_consumes_into_player() -> None:
+    client = FakeNotionClient()
+    registry = NotionRegistry(
+        "test-token", ROOT / "config" / "takeover_notion.json", client=client
+    )
+    registry.upsert_player(PlayerPopulation(player_id="kumiori", name="kumiori"))
+    invitation = registry.create_invitation(InvitationRecord(
+        "K7M4", "kumiori", datetime(2026, 8, 22, 12, tzinfo=timezone.utc),
+        note="open door", entry_hint="sound",
+    ))
+
+    assert invitation.status == "open"
+    assert invitation.consumed_by == ""
+    assert registry.find_invitations_by_code("K7M4") == [invitation]
+    assert len(registry.list_players()) == 1
+
+    registry.upsert_player(PlayerPopulation(player_id="new-player", name="New Player"))
+    consumed = registry.consume_invitation(
+        "K7M4", player_id="new-player",
+        consumed_at=datetime(2026, 8, 22, 13, tzinfo=timezone.utc),
+    )
+    assert consumed.status == "consumed"
+    assert consumed.consumed_by == "new-player"
+    assert registry.consume_invitation(
+        "K7M4", player_id="new-player",
+        consumed_at=datetime(2026, 8, 22, 13, tzinfo=timezone.utc),
+    ) == consumed
+    assert len(registry.list_players()) == 2
 
 
 def test_capability_resolution_is_unique_visible_and_survives_ready_transition() -> None:

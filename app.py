@@ -25,14 +25,21 @@ from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
 from takeover.identity import resolve_drop_token, resolve_identity
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
-from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
+from takeover.models import ENTITY_TYPES, STAGES, Entity, Relation, entity_type_label
 from takeover.network_analysis import connectivity_history
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
-from takeover.player_invitations import PlayerResolution, resolve_capability
+from takeover.player_invitations import (
+    InvitationRecord,
+    InvitationResolution,
+    PlayerResolution,
+    create_invitation_credentials,
+    resolve_capability,
+    resolve_invitation,
+)
 from takeover.public_media import FilebasePublicMediaStore
 from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, node_stage
-from takeover.node_population import PlayerPopulation, load_population_registry, population_state, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
+from takeover.node_population import PlayerPopulation, load_population_registry, make_person_id, population_state, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
 from takeover.registry import SessionRegistry, with_rc0_seeds
 from takeover.resource_field import load_resource_field, resource_rows
 from takeover.resources import build_combined_resources_figure, load_resources
@@ -305,18 +312,105 @@ def select_entry_mode(mode: str) -> None:
     st.session_state.pop("start_here_draft", None)
 
 
-def _persist_start_here(repo, persona, draft: dict) -> None:
+def _persist_start_here(
+    repo, persona, draft: dict, invitation: InvitationRecord | None = None
+) -> None:
+    attempt_key = (
+        f"start-here-attempt:{persona.access_key}:"
+        f"{invitation.code if invitation else 'public'}"
+    )
+    attempt = dict(st.session_state.get(attempt_key) or {})
+    if not attempt:
+        occurred_at = datetime.now(timezone.utc)
+        participant_id, initial_condition = make_person_id(
+            str(draft.get("display_name") or persona.nickname or "Anonymous"),
+            occurred_at.isoformat(),
+        )
+        _recognition_code, raw_capability, verifier = create_invitation_credentials()
+        attempt = {
+            "occurred_at": occurred_at.isoformat(),
+            "participant_id": participant_id,
+            "initial_condition": initial_condition,
+            "raw_capability": raw_capability,
+            "verifier": verifier,
+        }
+        st.session_state[attempt_key] = attempt
+    occurred_at = datetime.fromisoformat(str(attempt["occurred_at"]))
     participant_id = f"participant-{persona.access_key[:12].lower()}"
     display_name = str(draft.get("display_name") or persona.nickname or "Anonymous")
     participant, _contribution, _event = persist_entry(
         st.session_state, participant_id=participant_id, display_name=display_name,
         mode=str(draft["mode"]), contribution=dict(draft["payload"]),
-        occurred_at=datetime.now(timezone.utc),
+        occurred_at=occurred_at,
     )
-    if not any(item.id == participant_id for item in repo.list_entities()):
+    if callable(getattr(repo, "upsert_player", None)):
+        participant_id = str(attempt["participant_id"])
+        initial_condition = dict(attempt["initial_condition"])
+        raw_capability = str(attempt["raw_capability"])
+        verifier = str(attempt["verifier"])
+        contribution = dict(draft["payload"])
+        practice = str(contribution.get("practice") or contribution.get("possibility") or "")
+        bio = str(contribution.get("reason") or contribution.get("understand") or "")
+        sample_url = str(
+            contribution.get("link") or contribution.get("listening_link") or ""
+        )
+        metadata = {
+            "primary_mode": participant["role"],
+            "source": "invite" if invitation else "public_entry",
+            "capability": {
+                "version": 1,
+                "algorithm": "sha256",
+                "verifier": verifier,
+                "status": "active",
+                "issued_at": occurred_at.isoformat(),
+                "revoked_at": None,
+            },
+        }
+        if invitation:
+            metadata["invited_by"] = invitation.invited_by
+            metadata["invite_code"] = invitation.code
+        player = upsert_player_verified(repo, PlayerPopulation(
+            player_id=participant_id,
+            name=display_name,
+            label=f'Person • Alien / {participant["role"]} / application',
+            bio=bio,
+            practice=practice,
+            sample_url=sample_url,
+            metadata=metadata,
+            initial_condition=initial_condition,
+            project_stage="application",
+            node_stage="node_population",
+            status="active",
+            network_state="active",
+            visibility="public",
+        ))
+        if invitation:
+            relation = Relation(
+                f"relation-{invitation.invited_by}-invited-{participant_id}",
+                invitation.invited_by,
+                participant_id,
+                "invited",
+                "application",
+                "active",
+                {"provenance": "invitation", "invite_code": invitation.code},
+            )
+            repo.upsert_player_relation(relation)
+            repo.consume_invitation(
+                invitation.code, player_id=participant_id, consumed_at=occurred_at
+            )
+        current_url = str(getattr(st.context, "url", "") or "")
+        base_url = current_url.split("?", 1)[0].rstrip("/")
+        capability_url = (
+            f"{base_url}/?c={raw_capability}" if base_url else f"?c={raw_capability}"
+        )
+        st.session_state["start_here_ownership"] = {
+            "player": player,
+            "capability_url": capability_url,
+        }
+    elif not any(item.id == participant_id for item in repo.list_entities()):
         repo.add_entity(Entity(
             participant_id, "person", display_name,
-            f'Person • Alien / {participant["role"]} / invite', source="start_here",
+            f'Person • Alien / {participant["role"]} / entry', source="start_here",
             metadata={"primary_mode": participant["role"], "authority": "provisional"},
         ))
     st.session_state["start_here_persisted"] = participant_id
@@ -324,11 +418,27 @@ def _persist_start_here(repo, persona, draft: dict) -> None:
 
 
 @st.dialog(t("start_here"), width="large")
-def access_door(repo) -> None:
+def access_door(repo, invitation: InvitationRecord | None = None) -> None:
+    if invitation:
+        st.markdown(
+            f'<div class="entry-question">{html.escape(invitation.invited_by.upper())} '
+            "OPENED THIS DOOR FOR YOU.</div>",
+            unsafe_allow_html=True,
+        )
+        if invitation.entry_hint != "open":
+            st.caption(f"ENTRY HINT · {invitation.entry_hint.upper()}")
     st.caption("BROWSING IS OPEN · CONTRIBUTING CREATES IDENTITY")
     st.markdown('<div class="entry-flow">ENTER → CHOOSE → CONTRIBUTE → AUTHENTICATE → PERSIST</div>', unsafe_allow_html=True)
     if st.session_state.get("start_here_persisted"):
-        st.success("PRESENCE PERSISTED · PROVISIONAL")
+        st.success("PRESENCE PERSISTED")
+        ownership = dict(st.session_state.get("start_here_ownership") or {})
+        if ownership.get("capability_url"):
+            st.text_input(
+                "SAVE YOUR PRIVATE OWNERSHIP LINK",
+                value=str(ownership["capability_url"]),
+                disabled=True,
+            )
+            st.caption("THIS ?c= LINK EDITS YOUR EXISTING PLAYER. KEEP IT PRIVATE.")
         st.caption("PERSON ≠ CONTRIBUTION ≠ EVENT")
         return
 
@@ -394,7 +504,7 @@ def access_door(repo) -> None:
     if active:
         st.markdown(f'<div class="persona-emoji">{active.emoji_suffix_4}</div>', unsafe_allow_html=True)
         if st.button("PERSIST THIS CONTRIBUTION", type="primary", width="stretch"):
-            _persist_start_here(repo, active, draft)
+            _persist_start_here(repo, active, draft, invitation)
             st.rerun()
         return
     create_col, return_col = st.columns(2)
@@ -519,10 +629,26 @@ def render_node_editor(entity: Entity, store: FileNodeStore, repo) -> None:
     has_avatar = bool(avatar_url.strip()) if authoritative else avatar_upload is not None or bool(avatar.get("path") or avatar.get("url") or avatar.get("cid"))
     if authoritative:
         st.caption("NOTION WRITE · USE A PUBLIC IMAGE URL. LOCAL FILE SELECTION IS NOT A DURABLE AVATAR REFERENCE.")
-    can_save = has_avatar and bool(note.strip()) and bool(practice.strip())
+    state = population_state(
+        "avatar" if has_avatar else "",
+        note,
+        practice,
+        sample_reference,
+    )
+    if state.missing:
+        st.caption(
+            "NOTHING IS MANDATORY · ADD ANY ONE FIELD TO SAVE. "
+            "NODE REMAINS IN POPULATION · MISSING TO COMPLETE: "
+            + ", ".join(item.upper() for item in state.missing)
+        )
+    else:
+        st.caption("ALL FOUR FIELDS ARE PRESENT · SAVE WILL MARK THE NODE READY.")
     save_column, cancel_column = st.columns([2, 1])
     with save_column:
-        save = st.button("INHABIT NODE", type="primary", disabled=not can_save, width="stretch", key=f"node-save-{entity.id}")
+        save = st.button(
+            "INHABIT NODE", type="primary", disabled=not state.can_save,
+            width="stretch", key=f"node-save-{entity.id}",
+        )
     with cancel_column:
         if st.button("CANCEL", width="stretch", key=f"node-cancel-{entity.id}"):
             st.query_params.pop("node", None)
@@ -698,7 +824,8 @@ def owned_node_dialog(repo, player: dict) -> None:
         )
         if state.missing:
             st.caption(
-                "SAVE NOW / NODE REMAINS IN POPULATION · MISSING TO COMPLETE: "
+                "NOTHING IS MANDATORY · ADD ANY ONE FIELD TO SAVE. "
+                "NODE REMAINS IN POPULATION · MISSING TO COMPLETE: "
                 + ", ".join(item.upper() for item in state.missing)
             )
         else:
@@ -777,6 +904,13 @@ def resolve_capability_player(repo, player_registry_status: str) -> PlayerResolu
     return resolve_capability(
         repo, capability, registry_status=player_registry_status
     )
+
+
+def resolve_entry_invitation(repo, player_registry_status: str) -> InvitationResolution:
+    code = str(st.query_params.get("i", "") or "")
+    if not code:
+        return InvitationResolution("missing")
+    return resolve_invitation(repo, code, registry_status=player_registry_status)
 
 
 @st.dialog(t("connection"), width="large")
@@ -1010,8 +1144,14 @@ def render_network(
     mode: str,
     database: RegistryDiagnostics,
     capability_player: dict | None = None,
+    invitation: InvitationRecord | None = None,
 ) -> None:
     entities, relations = list(database.entities), list(database.relations)
+    if invitation:
+        st.info(
+            f"{invitation.invited_by.upper()} OPENED THIS DOOR FOR YOU · "
+            f"INVITE {invitation.code} · START HERE"
+        )
     process = "".join(
         f'<p>{html.escape(t(key))}</p>'
         for key in ("take_wall", "take_oven", "take_sound", "take_restaurant", "take_night", "take_web")
@@ -1075,6 +1215,7 @@ def render_network(
                 owner_id or None,
                 write_capability,
                 connectivity_history(entities, relations),
+                invitation.code if invitation else "",
             )
         )
     render_activation_drop()
@@ -1117,7 +1258,7 @@ def render_network(
             )
     if str(st.query_params.get("door", "") or "") == "access":
         record_event_once(st.session_state, "access-door-open", "event_access_opened")
-        access_door(repo)
+        access_door(repo, invitation)
     requested = str(st.query_params.get("node", "") or "")
     selected = next((item for item in entities if item.id == requested), None)
     if selected:
@@ -1398,6 +1539,11 @@ player_registry_status = (
 )
 capability_resolution = resolve_capability_player(repo, player_registry_status)
 capability_player = capability_resolution.player
+invitation_resolution = resolve_entry_invitation(repo, player_registry_status)
+entry_invitation = (
+    invitation_resolution.invitation
+    if invitation_resolution.status == "resolved" else None
+)
 if capability_player is not None:
     record_event_once(
         st.session_state,
@@ -1420,6 +1566,23 @@ elif capability_resolution.status == "integrity_error":
     st.error(
         "CAPABILITY OWNERSHIP CONFLICT · "
         f"{capability_resolution.matches} PLAYERS RESOLVED · EDITING DISABLED"
+    )
+if invitation_resolution.status == "registry_unavailable":
+    st.error("INVITATION REGISTRY UNAVAILABLE · INVITE NOT CHECKED")
+elif invitation_resolution.status == "registry_degraded":
+    st.error("INVITATION REGISTRY DEGRADED · INVITE NOT CHECKED")
+elif invitation_resolution.status == "malformed":
+    st.error("INVITATION CODE MALFORMED")
+elif invitation_resolution.status == "unknown":
+    st.error("INVITATION UNKNOWN")
+elif invitation_resolution.status == "consumed":
+    st.error("INVITATION ALREADY CONSUMED")
+elif invitation_resolution.status == "revoked":
+    st.error("INVITATION REVOKED")
+elif invitation_resolution.status == "integrity_error":
+    st.error(
+        "INVITATION CODE CONFLICT · "
+        f"{invitation_resolution.matches} RECORDS FOUND"
     )
 completed_population = st.session_state.get("completed-node-population")
 saved_population = st.session_state.get("saved-node-population")
@@ -1446,7 +1609,9 @@ if current_view not in {"network", "timeline", "necessities", "resources", "orde
 render_nav(current_view)
 render_sidebar(current_view, registry_mode, database_status)
 if current_view == "network":
-    render_network(repo, registry_mode, database_status, capability_player)
+    render_network(
+        repo, registry_mode, database_status, capability_player, entry_invitation
+    )
 elif current_view == "timeline":
     render_timeline()
 elif current_view == "necessities":

@@ -13,7 +13,7 @@ from notion_client.errors import APIResponseError
 
 from .models import Entity, Necessity, Relation
 from .node_population import PlayerPopulation
-from .player_invitations import PlayerResolution
+from .player_invitations import InvitationRecord, PlayerResolution
 
 
 def _plain(prop: dict[str, Any]) -> str:
@@ -383,6 +383,119 @@ class NotionRegistry:
         row["row_count"] = len(matches)
         row["duplicates"] = max(0, len(matches) - 1)
         return row
+
+    def _invitation_rows(self, code: str) -> list[dict[str, Any]]:
+        response = self.client.data_sources.query(
+            data_source_id=self.sources["interactions"],
+            filter={
+                "property": "Interaction ID",
+                "rich_text": {"equals": f"invite-{code.strip().upper()}"},
+            },
+            page_size=100,
+        )
+        return list(response.get("results") or [])
+
+    def _invitation_from_page(self, page: dict[str, Any]) -> InvitationRecord:
+        props = page.get("properties") or {}
+        raw_metadata = _plain(props.get("Metadata JSON") or {})
+        metadata = json.loads(raw_metadata) if raw_metadata else {}
+        return InvitationRecord(
+            code=str(metadata.get("code") or ""),
+            invited_by=_plain(props.get("Actor ID") or {}),
+            created_at=datetime.fromisoformat(
+                _date_start(props.get("Occurred At") or {})
+            ),
+            status=str(metadata.get("status") or "open"),
+            note=str(metadata.get("note") or ""),
+            entry_hint=str(metadata.get("entry_hint") or "open"),
+            mode=str(metadata.get("mode") or "single"),
+            project_stage=str(metadata.get("project_stage") or "application"),
+            consumed_by=_plain(props.get("Target ID") or {}),
+            consumed_at=str(metadata.get("consumed_at") or ""),
+        )
+
+    def create_invitation(self, invitation: InvitationRecord) -> InvitationRecord:
+        """Persist an open invitation without pre-creating a target player."""
+        if self._invitation_rows(invitation.code):
+            raise ValueError(f"Invitation code already exists: {invitation.code}")
+        inviter = self._player_rows(invitation.invited_by)
+        if len(inviter) != 1:
+            raise ValueError("Invitation inviter must resolve to exactly one player.")
+        metadata = {
+            "code": invitation.code,
+            "status": invitation.status,
+            "note": invitation.note,
+            "entry_hint": invitation.entry_hint,
+            "mode": invitation.mode,
+            "project_stage": invitation.project_stage,
+            "consumed_at": invitation.consumed_at or None,
+        }
+        created = self.client.pages.create(
+            parent={
+                "type": "data_source_id",
+                "data_source_id": self.sources["interactions"],
+            },
+            properties={
+                "Name": {"title": _text(f"INVITE {invitation.code}")},
+                "Interaction ID": {"rich_text": _text(f"invite-{invitation.code}")},
+                "Interaction Type": {"rich_text": _text("invitation")},
+                "Actor ID": {"rich_text": _text(invitation.invited_by)},
+                "Target ID": {"rich_text": []},
+                "Occurred At": {"date": {"start": invitation.created_at.isoformat()}},
+                "Visibility": {"select": {"name": "private"}},
+                "Metadata JSON": {"rich_text": _text(json.dumps(metadata))},
+                "Stage": {"relation": [{"id": self.stage_pages[invitation.project_stage]}]},
+                "Players": {"relation": [{"id": inviter[0]["id"]}]},
+            },
+        )
+        return self._invitation_from_page(
+            self.client.pages.retrieve(page_id=str(created["id"]))
+        )
+
+    def find_invitations_by_code(self, code: str) -> list[InvitationRecord]:
+        return [self._invitation_from_page(page) for page in self._invitation_rows(code)]
+
+    def list_invitations(self) -> list[InvitationRecord]:
+        invitations = []
+        for page in self._query_all("interactions"):
+            props = page.get("properties") or {}
+            if _plain(props.get("Interaction Type") or {}) == "invitation":
+                invitations.append(self._invitation_from_page(page))
+        return invitations
+
+    def consume_invitation(
+        self, code: str, *, player_id: str, consumed_at: datetime
+    ) -> InvitationRecord:
+        matches = self._invitation_rows(code)
+        if len(matches) != 1:
+            raise ValueError("Invitation must resolve exactly once before consumption.")
+        current = self._invitation_from_page(matches[0])
+        if current.status == "consumed" and current.consumed_by == player_id:
+            return current
+        if current.status != "open":
+            raise ValueError("Invitation is not open.")
+        player = self._player_rows(player_id)
+        inviter = self._player_rows(current.invited_by)
+        if len(player) != 1 or len(inviter) != 1:
+            raise ValueError("Invitation endpoints must resolve exactly once.")
+        metadata = {
+            "code": current.code,
+            "status": "consumed",
+            "note": current.note,
+            "entry_hint": current.entry_hint,
+            "mode": current.mode,
+            "project_stage": current.project_stage,
+            "consumed_at": consumed_at.isoformat(),
+        }
+        updated = self.client.pages.update(
+            page_id=str(matches[0]["id"]),
+            properties={
+                "Target ID": {"rich_text": _text(player_id)},
+                "Metadata JSON": {"rich_text": _text(json.dumps(metadata))},
+                "Players": {"relation": [{"id": inviter[0]["id"]}, {"id": player[0]["id"]}]},
+            },
+        )
+        return self._invitation_from_page(updated)
 
     def resolve_player_capability(self, capability: str) -> PlayerResolution:
         """Resolve one player-scoped capability with an explicit ownership outcome."""

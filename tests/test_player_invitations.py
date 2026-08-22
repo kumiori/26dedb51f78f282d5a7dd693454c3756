@@ -4,12 +4,16 @@ from datetime import datetime, timezone
 import pytest
 
 from takeover.player_invitations import (
+    InvitationRecord,
     InvitationAlreadyExists,
     capability_verifier,
     create_player_invitation,
     create_invitation_credentials,
+    create_open_invitation,
+    invite_entry_url,
     invitation_message,
     invitation_url,
+    resolve_invitation,
 )
 
 
@@ -31,6 +35,51 @@ def test_invitation_link_and_message_carry_name_code_and_capability() -> None:
     assert url == "https://takeover.example/?c=private%2Fvalue"
     assert "Mai Brit · ABC23" in message
     assert "After registration" in message
+
+
+def test_open_invitation_creates_no_player_and_uses_i_route() -> None:
+    class Store:
+        def __init__(self):
+            self.invitations = []
+            self.players = []
+
+        def create_invitation(self, invitation):
+            self.invitations.append(invitation)
+            return invitation
+
+        def find_invitations_by_code(self, code):
+            return [item for item in self.invitations if item.code == code]
+
+    store = Store()
+    result = create_open_invitation(
+        store,
+        invited_by="kumiori", inviter_name="kumiori",
+        website_url="https://takeover.example", note="come through",
+        entry_hint="sound",
+        clock=lambda: datetime(2026, 8, 22, 12, tzinfo=timezone.utc),
+        code_factory=lambda: "K7M4",
+    )
+
+    assert result.url == "https://takeover.example/?i=K7M4"
+    assert result.invitation.status == "open"
+    assert result.invitation.invited_by == "kumiori"
+    assert not store.players
+    assert resolve_invitation(store, "k7m4", registry_status="available").status == "resolved"
+
+
+def test_single_use_invitation_resolves_consumed_without_granting_capability() -> None:
+    consumed = InvitationRecord(
+        "K7M4", "kumiori", datetime(2026, 8, 22, tzinfo=timezone.utc),
+        status="consumed", consumed_by="player_new",
+    )
+    store = type("Store", (), {
+        "find_invitations_by_code": lambda self, code: [consumed],
+    })()
+
+    resolution = resolve_invitation(store, "K7M4", registry_status="available")
+    assert resolution.status == "consumed"
+    assert resolution.invitation.consumed_by == "player_new"
+    assert invite_entry_url("https://takeover.example", code="K7M4").endswith("?i=K7M4")
 
 
 def test_canonical_invitation_factory_is_idempotent_and_writes_directed_provenance() -> None:
