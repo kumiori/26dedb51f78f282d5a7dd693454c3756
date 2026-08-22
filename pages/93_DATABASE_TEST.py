@@ -4,6 +4,9 @@ from __future__ import annotations
 
 import os
 from pathlib import Path
+import hashlib
+import json
+import importlib.metadata
 
 import streamlit as st
 
@@ -94,6 +97,39 @@ elif result.status == "error":
     st.error(f"DATABASE READ FAILED · {result.error_type}")
 else:
     st.success("DATABASE READ COMPLETED")
+
+if mode == "notion":
+    manifest_payload = json.loads(MANIFEST.read_text(encoding="utf-8"))
+    manifest_fingerprint = hashlib.sha256(MANIFEST.read_bytes()).hexdigest()[:12]
+    token_fingerprint = hashlib.sha256(token.encode("utf-8")).hexdigest()[:12]
+    st.subheader("CONNECTION ISOLATION")
+    st.caption(
+        "SAFE CONFIGURATION FINGERPRINTS CAN BE COMPARED BETWEEN LOCAL AND DEPLOYED "
+        "RUNTIMES. THEY ARE NOT TOKENS OR DATABASE IDENTIFIERS."
+    )
+    st.dataframe([
+        {"check": "TOKEN PRESENT", "value": "yes"},
+        {
+            "check": "TOKEN FORMAT",
+            "value": "recognised" if token.startswith(("ntn_", "secret_")) else "unexpected",
+        },
+        {"check": "TOKEN CONFIG FINGERPRINT", "value": token_fingerprint},
+        {"check": "MANIFEST FINGERPRINT", "value": manifest_fingerprint},
+        {"check": "MANIFEST SCHEMA", "value": str(manifest_payload.get("schema_version") or "missing")},
+        {"check": "MANIFEST STATUS", "value": str(manifest_payload.get("status") or "missing")},
+        {"check": "MANIFEST SOURCES", "value": str(len(manifest_payload.get("databases") or {}))},
+        {"check": "NOTION API VERSION", "value": repo.API_VERSION},
+        {"check": "NOTION CLIENT", "value": importlib.metadata.version("notion-client")},
+    ], hide_index=True, width="stretch")
+    st.markdown("**BOUNDARY PROBES**")
+    st.dataframe(repo.connection_diagnostics(), hide_index=True, width="stretch")
+    st.caption(
+        "401 / TOKEN REJECTED → replace or re-save the deployed integration secret.  \n"
+        "403 / INTEGRATION LACKS ACCESS → share the Takeover databases with that integration.  \n"
+        "404 / SOURCE NOT SHARED OR MANIFEST MISMATCH → compare fingerprints, then share the "
+        "databases or deploy the current manifest.  \n"
+        "400 / REQUEST OR API CONTRACT REJECTED → check the deployed notion-client version and API version."
+    )
 
 source_diagnostics = getattr(repo, "source_diagnostics", None)
 if callable(source_diagnostics):

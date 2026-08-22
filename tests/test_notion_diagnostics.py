@@ -1,6 +1,9 @@
 from pathlib import Path
 
-from takeover.notion import NotionRegistry
+import httpx
+from notion_client.errors import APIErrorCode, APIResponseError
+
+from takeover.notion import NotionRegistry, safe_notion_error
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -26,6 +29,12 @@ class DiagnosticDataSources:
 class DiagnosticClient:
     def __init__(self) -> None:
         self.data_sources = DiagnosticDataSources()
+        self.users = DiagnosticUsers()
+
+
+class DiagnosticUsers:
+    def me(self):
+        return {"type": "bot"}
 
 
 def test_notion_source_diagnostics_distinguish_raw_and_active_rows() -> None:
@@ -46,6 +55,33 @@ def test_notion_source_diagnostics_distinguish_raw_and_active_rows() -> None:
     }
     assert result["relations"]["status"] == "connected"
     assert result["relations"]["rows"] == 0
+
+
+def test_connection_diagnostics_separate_auth_source_access_and_query() -> None:
+    registry = NotionRegistry(
+        "test-token", ROOT / "config" / "takeover_notion.json", client=DiagnosticClient()
+    )
+
+    assert [item["status"] for item in registry.connection_diagnostics()] == [
+        "pass", "pass", "pass"
+    ]
+
+
+def test_safe_notion_error_reports_provider_status_without_response_body() -> None:
+    error = APIResponseError(
+        code=APIErrorCode.ObjectNotFound,
+        status=404,
+        message="Object abc-secret-id was not found",
+        headers=httpx.Headers(),
+        raw_body_text='{"object": "error"}',
+    )
+
+    assert safe_notion_error(error) == {
+        "error_type": "APIResponseError",
+        "http_status": "404",
+        "provider_code": "object_not_found",
+        "diagnosis": "SOURCE NOT SHARED OR MANIFEST MISMATCH",
+    }
 
 
 def test_factory_schema_diagnostics_checks_player_and_relation_contracts() -> None:

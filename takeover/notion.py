@@ -9,6 +9,7 @@ import secrets
 from typing import Any
 
 from notion_client import Client
+from notion_client.errors import APIResponseError
 
 from .models import Entity, Necessity, Relation
 from .node_population import PlayerPopulation
@@ -37,7 +38,47 @@ def _text(value: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": {"content": str(value)}}]
 
 
+def _provider_value(value: Any) -> str:
+    """Return a stable provider enum/value without response payload detail."""
+    return str(getattr(value, "value", value) or "").lower()
+
+
+def safe_notion_error(exc: Exception) -> dict[str, str]:
+    """Classify a Notion failure without exposing tokens or object identifiers."""
+    if not isinstance(exc, APIResponseError):
+        return {
+            "error_type": type(exc).__name__,
+            "http_status": "",
+            "provider_code": "",
+            "diagnosis": "TRANSPORT OR CLIENT FAILURE",
+        }
+    status = _provider_value(getattr(exc, "status", ""))
+    code = _provider_value(getattr(exc, "code", ""))
+    if status == "401" or code == "unauthorized":
+        diagnosis = "TOKEN REJECTED"
+    elif status == "403" or code == "restricted_resource":
+        diagnosis = "INTEGRATION LACKS ACCESS"
+    elif status == "404" or code == "object_not_found":
+        diagnosis = "SOURCE NOT SHARED OR MANIFEST MISMATCH"
+    elif status == "429" or code == "rate_limited":
+        diagnosis = "NOTION RATE LIMITED"
+    elif status == "400" or code == "validation_error":
+        diagnosis = "REQUEST OR API CONTRACT REJECTED"
+    elif status.startswith("5"):
+        diagnosis = "NOTION SERVICE FAILURE"
+    else:
+        diagnosis = "NOTION API FAILURE"
+    return {
+        "error_type": type(exc).__name__,
+        "http_status": status,
+        "provider_code": code,
+        "diagnosis": diagnosis,
+    }
+
+
 class NotionRegistry:
+    API_VERSION = "2025-09-03"
+
     def __init__(self, token: str, manifest_path: Path, *, client: Any | None = None) -> None:
         """Create a registry from an explicit, application-owned manifest."""
         self.manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
@@ -47,7 +88,51 @@ class NotionRegistry:
         }
         self.stage_pages = dict(self.manifest["stage_pages"])
         self.stage_by_page = {value: key for key, value in self.stage_pages.items()}
-        self.client = client or Client(auth=token, notion_version="2025-09-03")
+        self.client = client or Client(auth=token, notion_version=self.API_VERSION)
+
+    def connection_diagnostics(self) -> list[dict[str, str]]:
+        """Probe auth, source visibility and query support without returning IDs."""
+        probes = (
+            ("AUTHENTICATION", lambda: self.client.users.me()),
+            (
+                "PLAYERS SOURCE ACCESS",
+                lambda: self.client.data_sources.retrieve(
+                    data_source_id=self.sources["players"]
+                ),
+            ),
+            (
+                "PLAYERS QUERY",
+                lambda: self.client.data_sources.query(
+                    data_source_id=self.sources["players"], page_size=1
+                ),
+            ),
+        )
+        output: list[dict[str, str]] = []
+        blocked = False
+        for name, probe in probes:
+            if blocked:
+                output.append({
+                    "probe": name,
+                    "status": "not_run",
+                    "http_status": "",
+                    "provider_code": "",
+                    "diagnosis": "BLOCKED BY EARLIER FAILURE",
+                })
+                continue
+            try:
+                probe()
+                output.append({
+                    "probe": name,
+                    "status": "pass",
+                    "http_status": "",
+                    "provider_code": "",
+                    "diagnosis": "",
+                })
+            except Exception as exc:
+                detail = safe_notion_error(exc)
+                output.append({"probe": name, "status": "error", **detail})
+                blocked = True
+        return output
 
     def _query_all(self, key: str) -> list[dict[str, Any]]:
         results: list[dict[str, Any]] = []
@@ -110,12 +195,16 @@ class NotionRegistry:
                     "error": "",
                 })
             except Exception as exc:
+                detail = safe_notion_error(exc)
                 output.append({
                     "source": key,
                     "status": "error",
                     "rows": 0,
                     "active": 0,
-                    "error": type(exc).__name__,
+                    "error": detail["error_type"],
+                    "http_status": detail["http_status"],
+                    "provider_code": detail["provider_code"],
+                    "diagnosis": detail["diagnosis"],
                 })
         return output
 
