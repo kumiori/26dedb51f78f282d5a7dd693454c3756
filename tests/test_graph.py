@@ -73,9 +73,26 @@ def test_graph_actions_navigate_the_parent_application_from_scripted_frame() -> 
     html = build_graph_html(entities, [Relation("r1", "ave", "image", "created")])
 
     assert '<base target="_top">' in html
-    assert 'href="?view=network&amp;node=ave"' in html
-    assert 'href="?view=network&amp;relation=r1"' in html
-    assert 'href="?view=network&amp;state=art"' in html
+    assert 'href="?view=network&amp;node=ave" target="_top"' in html
+    assert 'href="?view=network&amp;relation=r1" target="_top"' in html
+    assert 'href="?view=network&amp;state=art" target="_top"' in html
+    assert "document.referrer || window.location.href" in html
+    assert "window.top.location.href = destination" in html
+
+
+def test_graph_context_deduplicates_equivalent_person_labels() -> None:
+    entity = Entity(
+        "mai_brit",
+        "person",
+        "MAIBRIT",
+        "Person • Alien / Person · Alien",
+        metadata={"node_stage": "node_population"},
+    )
+
+    html = build_graph_html([entity], [])
+
+    assert "Person • Alien · Person · Alien" not in html
+    assert "Person • Alien · node_population" in html
 
 
 def test_ready_node_avatar_is_a_renderer_level_circular_image() -> None:

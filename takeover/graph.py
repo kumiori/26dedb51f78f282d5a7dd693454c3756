@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import html
 import json
+import re
 from math import atan2, cos, degrees, hypot, pi, sin
 from urllib.parse import quote
 from urllib.parse import urlparse
@@ -93,7 +94,7 @@ def build_graph_html(
         query = quote(relation.id, safe="")
         relation_label = html.escape(relation.type)
         lines.append(
-            f'<a href="?view=network&amp;relation={query}" class="relation-link" '
+            f'<a href="?view=network&amp;relation={query}" target="_top" class="relation-link" '
             f'data-source="{motion_ids[relation.source]}" data-target="{motion_ids[relation.target]}" '
             f'data-x1="{x1:.4f}" data-y1="{y1:.4f}" data-x2="{x2:.4f}" data-y2="{y2:.4f}" '
             f'style="left:{100 * x1 / width:.4f}%;top:{100 * y1 / height:.4f}%;'
@@ -117,6 +118,14 @@ def build_graph_html(
                 label_parts[0] = entity_type_label(entity.type)
             else:
                 label_parts.insert(0, entity_type_label(entity.type))
+        unique_parts: list[str] = []
+        seen_parts: set[str] = set()
+        for part in label_parts:
+            part_key = re.sub(r"[^a-z0-9]+", "", part.casefold())
+            if part_key and part_key not in seen_parts:
+                unique_parts.append(part)
+                seen_parts.add(part_key)
+        label_parts = unique_parts
         context = " · ".join(label_parts) if label_parts else entity_type_label(entity.type)
         style = f'left:{100 * x / width:.2f}%;top:{100 * y / height:.2f}%;--delay:-{index * .37:.2f}s;--depth:{depth}'
         avatar = entity.metadata.get("avatar") if isinstance(entity.metadata.get("avatar"), dict) else {}
@@ -135,7 +144,8 @@ def build_graph_html(
         )
         if entity.status == "active" or entity.id == editable_node_id:
             display_name = str(entity.metadata.get("display_name") or "").strip()
-            if display_name:
+            display_name_key = re.sub(r"[^a-z0-9]+", "", display_name.casefold())
+            if display_name and display_name_key not in seen_parts:
                 context = f"{display_name} · {context}"
             practices = entity.metadata.get("practice") or []
             if entity.metadata.get("node_stage") == "ready" and practices:
@@ -147,7 +157,7 @@ def build_graph_html(
             if entity.id == editable_node_id and write_capability:
                 context_query += f"&amp;c={quote(write_capability, safe='')}"
             nodes.append(
-                f'<a href="?view=network&amp;node={query}{context_query}" data-node-id="{motion_id}" class="node active {"context-node " if entity.id == editable_node_id else ""}{kind}" '
+                f'<a href="?view=network&amp;node={query}{context_query}" target="_top" data-node-id="{motion_id}" class="node active {"context-node " if entity.id == editable_node_id else ""}{kind}" '
                 f'style="{style}" aria-label="Inspect {label}">'
                 f'<span class="{orb_class}"{orb_style}></span><strong>{label}<i> ↗</i></strong><small>{html.escape(context)}</small></a>'
             )
@@ -224,10 +234,10 @@ def build_graph_html(
     <div class="graph-shell">
       <div class="field" data-registry='{html.escape(payload)}'>
         {''.join(lines)}
-        <a class="hub" href="?view=network&amp;door=access" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
+        <a class="hub" href="?view=network&amp;door=access" target="_top" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
         {''.join(nodes)}
       </div>
-      <a class="stats" href="?view=network&amp;state=art" aria-label="Inspect {html.escape(state_label)}">
+      <a class="stats" href="?view=network&amp;state=art" target="_top" aria-label="Inspect {html.escape(state_label)}">
         <h2>{html.escape(state_label)} ↗</h2><div>
           <span><b>{state_counts['active']}</b> {html.escape(active_label)}</span>
           <span><b>{state_counts['latent_known']}</b> {html.escape(latent_known_label)}</span>
@@ -241,6 +251,13 @@ def build_graph_html(
     </div>
     <script>
       (() => {{
+        document.querySelector('.graph-shell').addEventListener('click', event => {{
+          const anchor = event.target.closest('a[href^="?"]');
+          if (!anchor || event.button !== 0 || event.metaKey || event.ctrlKey || event.shiftKey || event.altKey) return;
+          event.preventDefault();
+          const destination = new URL(anchor.getAttribute('href'), document.referrer || window.location.href).href;
+          window.top.location.href = destination;
+        }});
         if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
         const field = document.querySelector('.field');
         const nodes = [...field.querySelectorAll('[data-node-id]')];

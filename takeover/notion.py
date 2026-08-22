@@ -29,6 +29,10 @@ def _relation_id(prop: dict[str, Any]) -> str:
     return str(values[0].get("id") or "") if values else ""
 
 
+def _date_start(prop: dict[str, Any]) -> str:
+    return str((prop.get("date") or {}).get("start") or "")
+
+
 def _text(value: str) -> list[dict[str, Any]]:
     return [{"type": "text", "text": {"content": str(value)}}]
 
@@ -127,6 +131,9 @@ class NotionRegistry:
                 metadata = json.loads(raw_metadata) if raw_metadata else {}
             except json.JSONDecodeError:
                 metadata = {}
+            created_at = _date_start(props.get("Created At") or {})
+            if created_at:
+                metadata["created_at"] = created_at
             # Authentication verifiers are adapter-private and never enter graph projections.
             metadata.pop("invitation_capability_hash", None)
             metadata.pop("capability", None)
@@ -183,6 +190,11 @@ class NotionRegistry:
             props = page.get("properties") or {}
             if (_select(props.get("Status") or {}) or "draft") != "active":
                 continue
+            raw_metadata = _plain(props.get("Metadata JSON") or {})
+            metadata = json.loads(raw_metadata) if raw_metadata else {}
+            created_at = _date_start(props.get("Created At") or {})
+            if created_at:
+                metadata["created_at"] = created_at
             output.append(Relation(
                 id=_plain(props.get("Relation ID") or {}),
                 source=_plain(props.get("Source ID") or {}),
@@ -190,10 +202,7 @@ class NotionRegistry:
                 type=_plain(props.get("Relation Type") or {}),
                 stage=self.stage_by_page.get(_relation_id(props.get("Stage") or {}), "application"),
                 status=_select(props.get("Status") or {}) or "active",
-                metadata=(
-                    json.loads(_plain(props.get("Metadata JSON") or {}))
-                    if _plain(props.get("Metadata JSON") or {}) else {}
-                ),
+                metadata=metadata,
             ))
         return output
 

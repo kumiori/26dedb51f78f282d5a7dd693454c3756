@@ -8,6 +8,7 @@ from takeover.node_population import (
     load_population_registry,
     make_person_id,
     person_id_from_initial_condition,
+    population_state,
     resolve_population_participant,
     upsert_player_verified,
     upsert_inhabited_node,
@@ -15,6 +16,22 @@ from takeover.node_population import (
 
 
 ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_population_state_allows_partial_save_but_only_completes_all_four_fields() -> None:
+    partial = population_state("", "bio", "practice", "sample")
+    assert partial.can_save
+    assert not partial.complete
+    assert partial.node_stage == "node_population"
+    assert partial.missing == ("avatar",)
+
+    complete = population_state("avatar", "bio", "practice", "sample")
+    assert complete.can_save
+    assert complete.complete
+    assert complete.node_stage == "ready"
+    assert complete.missing == ()
+
+    assert not population_state("", "", "", "").can_save
 
 
 def test_activation_aliases_resolve_to_canonical_seeded_node_ids() -> None:

@@ -14,7 +14,6 @@ import secrets
 import uuid
 
 import streamlit as st
-from streamlit.components.v1 import html as render_component_html
 
 from takeover.analytics import emit_google_event, emit_invitation_events, normalise_activation
 from takeover.browser_encrypt import encrypted_drop
@@ -27,11 +26,13 @@ from takeover.identity import resolve_drop_token, resolve_identity
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
+from takeover.network_analysis import connectivity_figure, connectivity_history
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
 from takeover.player_invitations import PlayerResolution, resolve_capability
+from takeover.public_media import FilebasePublicMediaStore
 from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, node_stage
-from takeover.node_population import PlayerPopulation, load_population_registry, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
+from takeover.node_population import PlayerPopulation, load_population_registry, population_state, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
 from takeover.registry import SessionRegistry, with_rc0_seeds
 from takeover.resource_field import load_resource_field, resource_rows
 from takeover.resources import build_combined_resources_figure, load_resources
@@ -50,6 +51,7 @@ NODE_POPULATION = load_population_registry(ROOT / "config" / "takeover_node_popu
 NODE_REGISTRY = Path(os.getenv("TAKEOVER_NODE_REGISTRY", ROOT / "data" / "inhabited_nodes_v1.json"))
 NODE_MEDIA = Path(os.getenv("TAKEOVER_NODE_MEDIA", ROOT / "data" / "inhabited_node_media"))
 APPLICATION_FILE_URL = "https://useless-azure-newt.myfilebase.com/ipfs/QmPfo4qhhGcWqfUvj8gFc3fMHuCcVpT9S4NNGwF4snSvt6"
+PUBLIC_MEDIA_GATEWAY = "https://useless-azure-newt.myfilebase.com/ipfs"
 
 language = st.session_state.get("takeover_language", "en")
 if language not in LANGUAGES:
@@ -153,6 +155,28 @@ def _drop_storage_context():
         return client, str(cfg["bucket"]), identities, ""
     except (KeyError, TypeError):
         return None, "", {}, "STORAGE IS NOT CONFIGURED"
+
+
+def _public_avatar_store():
+    """Build the public Filebase avatar adapter without exposing credentials."""
+    try:
+        import boto3
+        from botocore.config import Config
+
+        cfg = st.secrets["filebase"]
+        signature = "s3v4" if cfg.get("signature_version", "v4") == "v4" else cfg["signature_version"]
+        client = boto3.client(
+            "s3",
+            endpoint_url=cfg["endpoint"],
+            aws_access_key_id=cfg["access_key"],
+            aws_secret_access_key=cfg["secret_key"],
+            region_name=cfg.get("region", "auto"),
+            config=Config(signature_version=signature, connect_timeout=3, read_timeout=8, retries={"max_attempts": 1}),
+        )
+        gateway = str(cfg.get("public_gateway") or PUBLIC_MEDIA_GATEWAY)
+        return FilebasePublicMediaStore(client, str(cfg["bucket"]), gateway), ""
+    except (KeyError, TypeError, ValueError):
+        return None, "PUBLIC AVATAR STORAGE IS NOT CONFIGURED"
 
 
 @st.dialog("DROP / PRIVATE", width="large")
@@ -548,28 +572,69 @@ def render_node_editor(entity: Entity, store: FileNodeStore, repo) -> None:
 
 def render_ready_node(entity: Entity, record: dict | None) -> None:
     st.markdown('<div class="node-population-stage">NODE / READY</div>', unsafe_allow_html=True)
-    if record is None:
+    node = (record or {}).get("node") or {}
+    projected_avatar = entity.metadata.get("avatar")
+    avatar = (
+        projected_avatar
+        if isinstance(projected_avatar, dict) and projected_avatar
+        else (node.get("avatar") or {})
+    )
+    avatar_url = str(avatar.get("url") or _media_data_url(avatar) or "")
+    bio = str(
+        entity.metadata.get("bio")
+        or (node.get("text") or {}).get("text")
+        or ""
+    )
+    projected_practice = entity.metadata.get("practice") or ""
+    practice_items = (
+        [str(projected_practice)]
+        if isinstance(projected_practice, str) and projected_practice.strip()
+        else list(projected_practice or node.get("practice") or [])
+    )
+    practices = "".join(f'<span>{html.escape(str(item))}</span>' for item in practice_items)
+    sample = node.get("sample") or {}
+    sample_ref = str(
+        entity.metadata.get("sample_url")
+        or sample.get("url")
+        or sample.get("cid")
+        or ""
+    )
+    avatar_column, content_column = st.columns([1, 3], gap="large", vertical_alignment="top")
+    with avatar_column:
+        st.markdown("**AVATAR**")
+        if avatar_url.startswith(("http://", "https://")):
+            crop = avatar.get("crop") or {}
+            st.markdown(
+                f'<div class="inhabited-node-avatar" style="background-image:url({html.escape(json.dumps(avatar_url))});background-position:{100 * float(crop.get("x", .5)):.1f}% {100 * float(crop.get("y", .5)):.1f}%;background-size:{100 * float(crop.get("scale", 1)):.1f}%"></div>',
+                unsafe_allow_html=True,
+            )
+        elif avatar.get("cid"):
+            st.caption(f'AVATAR CID · {avatar["cid"]}')
+        else:
+            st.caption("NOT YET ADDED")
+    with content_column:
+        st.markdown("**BIO / NOTE**")
+        st.markdown(bio or "_Not yet added._")
+        st.markdown("**PRACTICE**")
+        st.markdown(f'<div class="inhabited-node-practice">{practices}</div>', unsafe_allow_html=True)
+        if not practice_items:
+            st.caption("NOT YET ADDED")
+        st.markdown("**SAMPLE**")
+        if sample_ref.startswith(("http://", "https://")):
+            st.markdown(
+                f'<div class="inhabited-node-sample"><small>{html.escape(str(sample.get("type") or "LINK").upper())}</small>'
+                f'<strong>{html.escape(str(sample.get("caption") or sample_ref))}</strong>'
+                f'<a href="{html.escape(sample_ref)}" target="_blank" rel="noopener noreferrer">OPEN SAMPLE ↗</a></div>',
+                unsafe_allow_html=True,
+            )
+        elif sample_ref:
+            st.markdown(f'<div class="inhabited-node-sample"><small>{html.escape(str(sample.get("type") or "OBJECT").upper())}</small><strong>{html.escape(str(sample.get("caption") or sample_ref))}</strong><span>{html.escape(sample_ref)}</span></div>', unsafe_allow_html=True)
+        else:
+            st.caption("NOT YET ADDED")
+    if not any((avatar_url, bio, practice_items, sample_ref)):
         if entity.label:
             st.write(entity.label)
         st.caption("REGISTERED KERNEL NODE")
-        return
-    node = record.get("node") or {}
-    avatar = node.get("avatar") or {}
-    avatar_url = str(avatar.get("url") or _media_data_url(avatar) or "")
-    if avatar_url.startswith(("http://", "https://")):
-        crop = avatar.get("crop") or {}
-        st.markdown(
-            f'<div class="inhabited-node-avatar" style="background-image:url({html.escape(json.dumps(avatar_url))});background-position:{100 * float(crop.get("x", .5)):.1f}% {100 * float(crop.get("y", .5)):.1f}%;background-size:{100 * float(crop.get("scale", 1)):.1f}%"></div>',
-            unsafe_allow_html=True,
-        )
-    elif avatar.get("cid"):
-        st.caption(f'AVATAR CID · {avatar["cid"]}')
-    st.markdown(str((node.get("text") or {}).get("text") or ""))
-    practices = "".join(f'<span>{html.escape(str(item))}</span>' for item in node.get("practice") or [])
-    st.markdown(f'<div class="inhabited-node-practice">{practices}</div>', unsafe_allow_html=True)
-    sample = node.get("sample") or {}
-    sample_ref = str(sample.get("url") or sample.get("cid") or "")
-    st.markdown(f'<div class="inhabited-node-sample"><small>SAMPLE / {html.escape(str(sample.get("type") or "LINK").upper())}</small><strong>{html.escape(str(sample.get("caption") or sample_ref))}</strong><span>{html.escape(sample_ref)}</span></div>', unsafe_allow_html=True)
 
 
 @st.dialog(t("node"), width="large")
@@ -616,18 +681,33 @@ def owned_node_dialog(repo, player: dict) -> None:
         "the node can continue to change after it is inhabited."
     )
     with st.form(f"invited-node-{player['player_id']}"):
+        avatar_upload = st.file_uploader(
+            "UPLOAD AVATAR",
+            type=("jpg", "jpeg", "png", "webp"),
+            key=f"owned-avatar-{player['player_id']}",
+        )
         image_url = st.text_input("AVATAR / IMAGE URL", value=str(draft.get("image_url") or player.get("image_url") or ""))
         bio = st.text_area("BIO / NOTE", value=str(draft.get("bio") or player.get("bio") or ""))
         practice = st.text_input("PRACTICE", value=str(draft.get("practice") or player.get("practice") or ""))
         sample_url = st.text_input("ONE REPRESENTATIVE SAMPLE / URL", value=str(draft.get("sample_url") or player.get("sample_url") or ""))
-        st.caption("AVATAR, BIO / NOTE, PRACTICE AND ONE SAMPLE ARE REQUIRED TO COMPLETE THE NODE.")
+        state = population_state(
+            image_url or ("pending-upload" if avatar_upload is not None else ""),
+            bio,
+            practice,
+            sample_url,
+        )
+        if state.missing:
+            st.caption(
+                "SAVE NOW / NODE REMAINS IN POPULATION · MISSING TO COMPLETE: "
+                + ", ".join(item.upper() for item in state.missing)
+            )
+        else:
+            st.caption("ALL FOUR FIELDS ARE PRESENT · SAVE WILL MARK THE NODE READY.")
         submitted = st.form_submit_button(
-            "INHABIT NODE / REGISTER",
+            "SAVE / INHABIT NODE",
             type="primary",
             width="stretch",
-            disabled=not (
-                image_url.strip() and bio.strip() and practice.strip() and sample_url.strip()
-            ),
+            disabled=not state.can_save,
         )
     if submitted:
         st.session_state[draft_key] = {
@@ -638,32 +718,52 @@ def owned_node_dialog(repo, player: dict) -> None:
         }
         record_event(st.session_state, "event_node_edited", str(player["player_id"]))
         try:
+            persisted_image_url = image_url.strip()
+            if avatar_upload is not None:
+                media_store, storage_error = _public_avatar_store()
+                if storage_error or media_store is None:
+                    raise ValueError(storage_error or "PUBLIC AVATAR STORAGE IS UNAVAILABLE")
+                uploaded_avatar = media_store.save_avatar(
+                    player_id=str(player["player_id"]),
+                    filename=avatar_upload.name,
+                    content_type=avatar_upload.type or "application/octet-stream",
+                    data=avatar_upload.getvalue(),
+                )
+                persisted_image_url = uploaded_avatar.url
             metadata = dict(player.get("metadata") or {})
             metadata["invitation_registered_at"] = datetime.now(timezone.utc).isoformat()
             result = upsert_player_verified(repo, PlayerPopulation(
                 player_id=str(player["player_id"]),
                 name=str(player["name"]),
                 label=str(player.get("label") or "Person • Alien"),
-                image_url=image_url.strip(),
+                image_url=persisted_image_url,
                 bio=bio.strip(),
                 practice=practice.strip(),
                 sample_url=sample_url.strip(),
                 metadata=metadata,
                 initial_condition=dict(player.get("initial_condition") or {}),
                 project_stage="application",
-                node_stage="ready",
+                node_stage=state.node_stage,
                 status="active",
                 network_state="active",
                 visibility="public",
             ))
             record_event(st.session_state, "event_save_succeeded", str(player["player_id"]), "read-back verified")
             st.session_state.pop(draft_key, None)
-            st.session_state["completed-node-population"] = {
-                "player_id": player["player_id"],
-                "name": player["name"],
-                "code": code,
-                "result": result,
-            }
+            if state.complete:
+                st.session_state["completed-node-population"] = {
+                    "player_id": player["player_id"],
+                    "name": player["name"],
+                    "code": code,
+                    "result": result,
+                }
+                st.session_state.pop("saved-node-population", None)
+            else:
+                st.session_state["saved-node-population"] = {
+                    "player_id": player["player_id"],
+                    "name": player["name"],
+                    "missing": state.missing,
+                }
             st.rerun()
         except Exception as exc:
             record_event(st.session_state, "event_save_failed", str(player["player_id"]), type(exc).__name__)
@@ -956,6 +1056,18 @@ def render_network(
             '<b aria-hidden="true">↗</b></a></section>',
             unsafe_allow_html=True,
         )
+        connectivity_rows = connectivity_history(entities, relations)
+        st.markdown("### CONNECTIVITY / OBSERVED TIME")
+        st.plotly_chart(
+            connectivity_figure(connectivity_rows),
+            width="stretch",
+            theme=None,
+            config={"displayModeBar": False},
+        )
+        st.caption(
+            f'{connectivity_rows[-1]["basis"].upper()} · CONNECTIVITY = (1 + RELATIONS) / NODES · '
+            "DIRECTED DENSITY SHOWN ON HOVER"
+        )
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
         st.caption(
@@ -966,7 +1078,7 @@ def render_network(
         write_capability = (
             str(st.query_params.get("c", "") or "") if owner_id else ""
         )
-        render_component_html(
+        st.html(
             build_graph_html(
                 entities, relations, t("start_here"), t("state_of_art"),
                 t("nodes"), t("connections"), t("connectivity"),
@@ -974,9 +1086,7 @@ def render_network(
                 t("active_people"), t("latent_known"), t("latent_private"), t("unknown"),
                 owner_id or None,
                 write_capability,
-            ),
-            height=620,
-            scrolling=False,
+            )
         )
     render_activation_drop()
     st.markdown(
@@ -1314,6 +1424,12 @@ elif capability_resolution.status == "integrity_error":
         f"{capability_resolution.matches} PLAYERS RESOLVED · EDITING DISABLED"
     )
 completed_population = st.session_state.get("completed-node-population")
+saved_population = st.session_state.get("saved-node-population")
+if saved_population:
+    st.success(
+        f"NODE SAVED · {saved_population['name']} · POPULATION CONTINUES · "
+        "MISSING: " + ", ".join(item.upper() for item in saved_population["missing"])
+    )
 if completed_population:
     st.success(f"NODE READY · {completed_population['name']} · NETWORK UPDATED")
     st.markdown("**NEXT / PRIVATE UPLOAD**")

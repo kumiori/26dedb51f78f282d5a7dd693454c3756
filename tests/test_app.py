@@ -88,7 +88,8 @@ def test_main_graph_uses_only_registry_topology(monkeypatch) -> None:
     app = AppTest.from_file("app.py").run(timeout=20)
 
     assert not app.exception
-    assert len(app.get("iframe")) == 1
+    assert len(app.get("iframe")) == 0
+    assert len(app.get("html")) >= 1
     assert not any(item.label == "GENERATED FROM DATABASE" for item in app.toggle)
     assert any(
         "GRAPH SOURCE · DATABASE / GENERATED · 0 NODES · 0 RELATIONS" in item.value
@@ -376,7 +377,7 @@ def test_legacy_secret_capability_does_not_claim_a_session_player() -> None:
     app.run(timeout=20)
 
     assert not app.exception
-    assert "INHABIT NODE / REGISTER" not in {button.label for button in app.button}
+    assert "SAVE / INHABIT NODE" not in {button.label for button in app.button}
     assert any("PLAYER REGISTRY UNAVAILABLE" in item.value for item in app.error)
 
 
@@ -410,7 +411,7 @@ def test_registry_unavailable_does_not_misreport_capability_as_invalid() -> None
     app.query_params["c"] = "duplicated-capability"
     app.run(timeout=20)
     assert any("PLAYER REGISTRY UNAVAILABLE" in item.value for item in app.error)
-    assert "INHABIT NODE / REGISTER" not in {button.label for button in app.button}
+    assert "SAVE / INHABIT NODE" not in {button.label for button in app.button}
 
 
 def test_tooltips_keep_readable_contrast_and_fit() -> None:

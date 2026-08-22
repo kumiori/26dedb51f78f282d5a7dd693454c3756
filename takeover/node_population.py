@@ -82,6 +82,36 @@ class PlayerPopulation:
             raise ValueError("Generated player IDs require their initial condition.")
 
 
+@dataclass(frozen=True)
+class PopulationState:
+    can_save: bool
+    complete: bool
+    node_stage: str
+    missing: tuple[str, ...]
+
+
+def population_state(
+    image_url: str,
+    bio: str,
+    practice: str,
+    sample_url: str,
+) -> PopulationState:
+    """Describe an incremental node edit without conflating save with completion."""
+    values = {
+        "avatar": image_url.strip(),
+        "bio": bio.strip(),
+        "practice": practice.strip(),
+        "sample": sample_url.strip(),
+    }
+    missing = tuple(name for name, value in values.items() if not value)
+    return PopulationState(
+        can_save=bool(len(missing) < len(values)),
+        complete=not missing,
+        node_stage="ready" if not missing else "node_population",
+        missing=missing,
+    )
+
+
 def upsert_player_verified(store: Any, payload: PlayerPopulation) -> dict[str, Any]:
     """Upsert one player and reject any incomplete or mismatched adapter read-back."""
     row = store.upsert_player(payload)

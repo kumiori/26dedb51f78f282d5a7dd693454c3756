@@ -107,6 +107,8 @@ def test_general_entity_loader_keeps_player_facing_fields() -> None:
     entity = registry._entities("players", "person", "Person ID")[0]
 
     assert entity.source == "https://example.test/avatar.jpg"
+    created_at = entity.metadata.pop("created_at")
+    assert created_at
     assert entity.metadata == {
         "crop": {"x": 0.4},
         "node_stage": "node_population",
@@ -161,7 +163,13 @@ def test_player_relation_upsert_uses_stable_id_and_real_player_endpoints() -> No
     assert updated["source"] == "kumiori"
     assert updated["target"] == "ave"
     assert updated["metadata"] == {"provenance": "test"}
-    assert registry.list_relations() == [relation]
+    listed = registry.list_relations()
+    assert len(listed) == 1
+    assert (listed[0].id, listed[0].source, listed[0].target, listed[0].type) == (
+        relation.id, relation.source, relation.target, relation.type,
+    )
+    assert listed[0].metadata["provenance"] == "test"
+    assert listed[0].metadata["created_at"]
 
 
 def test_generated_player_initial_condition_survives_mutable_updates() -> None:
