@@ -179,7 +179,10 @@ class NotionRegistry:
     def source_diagnostics(self) -> list[dict[str, Any]]:
         """Return safe row counts for read-only operator diagnostics."""
         output: list[dict[str, Any]] = []
-        for key in ("players", "photographs", "audio", "relations", "necessities"):
+        for key in (
+            "players", "photographs", "audio", "relations", "necessities",
+            "interactions",
+        ):
             try:
                 rows = self._query_all(key)
                 active = sum(

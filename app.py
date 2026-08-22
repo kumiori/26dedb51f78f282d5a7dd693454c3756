@@ -1568,7 +1568,9 @@ elif capability_resolution.status == "integrity_error":
 if invitation_resolution.status == "registry_unavailable":
     st.error("INVITATION REGISTRY UNAVAILABLE · INVITE NOT CHECKED")
 elif invitation_resolution.status == "registry_degraded":
-    st.error("INVITATION REGISTRY DEGRADED · INVITE NOT CHECKED")
+    detail = invitation_resolution.diagnosis or invitation_resolution.error_type
+    suffix = f" · {detail}" if detail else ""
+    st.error(f"INVITATION REGISTRY DEGRADED · INVITE NOT CHECKED{suffix}")
 elif invitation_resolution.status == "malformed":
     st.error("INVITATION CODE MALFORMED")
 elif invitation_resolution.status == "unknown":

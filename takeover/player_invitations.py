@@ -55,6 +55,10 @@ class InvitationResolution:
     status: str
     invitation: InvitationRecord | None = None
     matches: int = 0
+    error_type: str = ""
+    http_status: str = ""
+    provider_code: str = ""
+    diagnosis: str = ""
 
 
 @dataclass(frozen=True)
@@ -149,8 +153,31 @@ def resolve_invitation(
         return InvitationResolution("malformed")
     try:
         matches = store.find_invitations_by_code(candidate)
-    except Exception:
-        return InvitationResolution("registry_degraded")
+    except Exception as exc:
+        status = str(getattr(exc, "status", "") or "")
+        code_value = getattr(exc, "code", "")
+        code = str(getattr(code_value, "value", code_value) or "").lower()
+        if status == "401" or code == "unauthorized":
+            diagnosis = "TOKEN REJECTED"
+        elif status == "403" or code == "restricted_resource":
+            diagnosis = "INTEGRATION LACKS ACCESS"
+        elif status == "404" or code == "object_not_found":
+            diagnosis = "INTERACTIONS SOURCE NOT SHARED OR MANIFEST MISMATCH"
+        elif status == "429" or code == "rate_limited":
+            diagnosis = "NOTION RATE LIMITED"
+        elif status == "400" or code == "validation_error":
+            diagnosis = "INVITATION QUERY REJECTED"
+        elif status.startswith("5"):
+            diagnosis = "NOTION SERVICE FAILURE"
+        else:
+            diagnosis = "TRANSPORT OR CLIENT FAILURE"
+        return InvitationResolution(
+            "registry_degraded",
+            error_type=type(exc).__name__,
+            http_status=status,
+            provider_code=code,
+            diagnosis=diagnosis,
+        )
     if not matches:
         return InvitationResolution("unknown")
     if len(matches) != 1:

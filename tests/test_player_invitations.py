@@ -82,6 +82,26 @@ def test_single_use_invitation_resolves_consumed_without_granting_capability() -
     assert invite_entry_url("https://takeover.example", code="K7M4").endswith("?i=K7M4")
 
 
+def test_invitation_resolution_preserves_safe_source_access_diagnosis() -> None:
+    class SourceNotFound(Exception):
+        status = 404
+        code = "object_not_found"
+
+    class Store:
+        def find_invitations_by_code(self, _code):
+            raise SourceNotFound("secret provider response must not be exposed")
+
+    resolution = resolve_invitation(Store(), "K7M4", registry_status="available")
+
+    assert resolution.status == "registry_degraded"
+    assert resolution.http_status == "404"
+    assert resolution.provider_code == "object_not_found"
+    assert resolution.diagnosis == (
+        "INTERACTIONS SOURCE NOT SHARED OR MANIFEST MISMATCH"
+    )
+    assert "secret" not in str(resolution)
+
+
 def test_canonical_invitation_factory_is_idempotent_and_writes_directed_provenance() -> None:
     class Store:
         def __init__(self):

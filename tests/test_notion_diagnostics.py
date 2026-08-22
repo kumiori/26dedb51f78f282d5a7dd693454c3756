@@ -55,6 +55,8 @@ def test_notion_source_diagnostics_distinguish_raw_and_active_rows() -> None:
     }
     assert result["relations"]["status"] == "connected"
     assert result["relations"]["rows"] == 0
+    assert result["interactions"]["status"] == "connected"
+    assert result["interactions"]["rows"] == 0
 
 
 def test_connection_diagnostics_separate_auth_source_access_and_query() -> None:
