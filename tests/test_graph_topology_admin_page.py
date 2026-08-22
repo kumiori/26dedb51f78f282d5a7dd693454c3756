@@ -1,4 +1,14 @@
 from streamlit.testing.v1 import AppTest
+from pathlib import Path
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_invitation_write_result_serialises_the_record_before_rendering() -> None:
+    source = (ROOT / "pages" / "94_GRAPH_TOPOLOGY_ADMIN.py").read_text()
+
+    assert 'st.json(asdict(invitation_result["invitation"]))' in source
 
 
 def test_graph_topology_admin_is_gated(monkeypatch) -> None:

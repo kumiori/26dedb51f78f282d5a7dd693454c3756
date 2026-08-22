@@ -1,9 +1,20 @@
 from types import SimpleNamespace
+from pathlib import Path
 
 from streamlit.testing.v1 import AppTest
 
 from takeover.i18n import UTTERANCES, language_term
 from takeover.style import CSS
+
+
+ROOT = Path(__file__).resolve().parents[1]
+
+
+def test_identity_lookup_health_is_independent_from_graph_projection_health() -> None:
+    source = (ROOT / "app.py").read_text()
+
+    assert '"available" if registry_mode == "notion" else "unavailable"' in source
+    assert 'database_status.status == "error"' not in source
 
 
 class FakeDropS3:

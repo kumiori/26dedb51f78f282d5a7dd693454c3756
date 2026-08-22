@@ -1533,9 +1533,7 @@ def render_voices() -> None:
 repo, registry_mode = registry()
 database_status = inspect_registry(repo, registry_mode)
 player_registry_status = (
-    "unavailable"
-    if registry_mode != "notion"
-    else ("degraded" if database_status.status == "error" else "available")
+    "available" if registry_mode == "notion" else "unavailable"
 )
 capability_resolution = resolve_capability_player(repo, player_registry_status)
 capability_player = capability_resolution.player

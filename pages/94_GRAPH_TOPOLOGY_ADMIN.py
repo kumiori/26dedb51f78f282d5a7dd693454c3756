@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import os
+from dataclasses import asdict
 from datetime import datetime
 from pathlib import Path
 import re
@@ -215,7 +216,7 @@ if invitation_result:
             "THIS CODE RECORDS PROVENANCE ONLY. IT DOES NOT IDENTIFY A PLAYER OR GRANT EDIT RIGHTS."
         )
         with st.expander("INVITATION WRITE RESULT"):
-            st.json(invitation_result["invitation"])
+            st.json(asdict(invitation_result["invitation"]))
 
 st.divider()
 
