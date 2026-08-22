@@ -1,4 +1,5 @@
 import re
+from datetime import datetime, timezone
 
 from takeover.graph import build_graph_html, clipped_segment, generated_positions
 from takeover.models import Entity, Relation
@@ -27,6 +28,21 @@ def test_state_summary_has_a_dedicated_band_outside_the_graph_field() -> None:
     assert field_end < html.index('class="stats"')
     assert ".stats { position:relative" in html
     assert ".stats { position:absolute" not in html
+
+
+def test_connectivity_history_sits_beside_state_portrait() -> None:
+    rendered = build_graph_html(
+        [Entity("ave", "person", "Ave")],
+        [],
+        connectivity_rows=[{
+            "timestamp": datetime(2026, 8, 22, tzinfo=timezone.utc),
+            "connectivity": 1.0,
+        }],
+    )
+
+    assert 'class="graph-footer"' in rendered
+    assert 'class="connectivity-mini"' in rendered
+    assert rendered.index('class="connectivity-mini"') < rendered.index('class="stats"')
 
 
 def test_generated_layout_is_stable_and_requires_no_stored_coordinates() -> None:

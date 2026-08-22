@@ -56,7 +56,8 @@ def test_m1_initial_state_is_sparse(monkeypatch) -> None:
     )
     assert 'class="takeover-entry"' in footer
     assert 'href="https://t.me/takeover_process_bot"' in footer
-    assert 'href="https://console.filebase.com/buckets/takeover-fotografiska"' in footer
+    assert 'href="https://console.filebase.com/buckets/takeover-fotografiska"' not in footer
+    assert 'class="takeover-footer-disabled"' in footer
     assert footer.count("<svg") == 2
     assert 'target="_blank"' in footer
     assert (
@@ -73,8 +74,8 @@ def test_m1_initial_state_is_sparse(monkeypatch) -> None:
     )
     assert "OPEN APPLICATION FILE" in uncertainty
     assert (
-        'href="https://useless-azure-newt.myfilebase.com/ipfs/'
-        'QmPfo4qhhGcWqfUvj8gFc3fMHuCcVpT9S4NNGwF4snSvt6"' in uncertainty
+        'href="https://console.filebase.com/object/takeover-fotografiska/'
+        'APPLICATION-TAKEOVER%E2%80%A2HANDOUT.pdf"' in uncertainty
     )
     assert uncertainty.count("<svg") == 1
     assert 'target="_blank"' in uncertainty

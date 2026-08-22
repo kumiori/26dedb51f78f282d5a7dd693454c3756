@@ -14,5 +14,5 @@ def test_cta_turn_page_exposes_adjustable_reference_geometry() -> None:
     assert 'class="cta-turn-action"' in corpus
     assert "clip-path:polygon" in corpus
     assert "OPEN APPLICATION FILE" in corpus
-    assert "APPLICATION-TAKEOVER%E2%80%A2kumiori-ALB.pdf" in corpus
+    assert "APPLICATION-TAKEOVER%E2%80%A2HANDOUT.pdf" in corpus
     assert 'target="_blank"' in corpus

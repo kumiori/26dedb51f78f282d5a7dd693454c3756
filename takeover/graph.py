@@ -8,8 +8,49 @@ import re
 from math import atan2, cos, degrees, hypot, pi, sin
 from urllib.parse import quote
 from urllib.parse import urlparse
+from typing import Any
 
 from .models import Entity, Relation, entity_type_label
+
+
+def _connectivity_plot_html(rows: list[dict[str, Any]]) -> str:
+    """Render a compact inline history plot beside the graph state portrait."""
+    if not rows:
+        return ""
+    width, height = 250.0, 92.0
+    left, right, top, bottom = 8.0, 8.0, 20.0, 14.0
+    timestamps = [row["timestamp"].timestamp() for row in rows]
+    values = [float(row["connectivity"]) for row in rows]
+    x_min, x_max = min(timestamps), max(timestamps)
+    y_max = max(max(values), 1.0)
+
+    def x_position(value: float) -> float:
+        if x_max <= x_min:
+            return width / 2
+        return left + (value - x_min) / (x_max - x_min) * (width - left - right)
+
+    def y_position(value: float) -> float:
+        return height - bottom - value / y_max * (height - top - bottom)
+
+    points = [
+        (x_position(timestamp), y_position(value))
+        for timestamp, value in zip(timestamps, values)
+    ]
+    polyline = " ".join(f"{x:.1f},{y:.1f}" for x, y in points)
+    circles = "".join(
+        f'<circle cx="{x:.1f}" cy="{y:.1f}" r="2.7"><title>'
+        f'{html.escape(row["timestamp"].isoformat())} · '
+        f'{float(row["connectivity"]):.3f}</title></circle>'
+        for (x, y), row in zip(points, rows)
+    )
+    return (
+        '<section class="connectivity-mini" aria-label="Connectivity over observed time">'
+        f'<header><strong>CONNECTIVITY / TIME</strong><b>{values[-1]:.2f}</b></header>'
+        f'<svg viewBox="0 0 {width:.0f} {height:.0f}" role="img">'
+        f'<line x1="{left}" y1="{height - bottom}" x2="{width - right}" '
+        f'y2="{height - bottom}"/><polyline points="{polyline}"/>{circles}</svg>'
+        '<small>(1 + RELATIONS) / NODES · OBSERVED CREATED AT</small></section>'
+    )
 
 
 def generated_positions(entities: list[Entity]) -> dict[str, tuple[float, float]]:
@@ -67,6 +108,7 @@ def build_graph_html(
     unknown_label: str = "UNKNOWN",
     editable_node_id: str | None = None,
     write_capability: str = "",
+    connectivity_rows: list[dict[str, Any]] | None = None,
 ) -> str:
     width, height = 920, 590
     positions = {
@@ -183,6 +225,7 @@ def build_graph_html(
         for relation in relations
     )
     payload = json.dumps({"nodes": count, "connections": connection_count, "states": state_counts})
+    connectivity_plot = _connectivity_plot_html(connectivity_rows or [])
 
     return f"""
     <base target="_top">
@@ -222,12 +265,22 @@ def build_graph_html(
       .unknown {{ width:3.26%; opacity:.10; }}
       .unknown .orb {{ width:86.67%; }}
       .unknown:nth-of-type(even) .orb {{ width:60%; }}
-      .stats {{ position:relative; z-index:5; display:block; width:min(100%,470px); margin:18px 0 0 auto; padding:12px 0 4px; border-top:2px solid #111; color:#111; text-decoration:none; font-size:9px; letter-spacing:.09em; line-height:1.6; text-transform:uppercase; }}
+      .graph-footer {{ display:grid; grid-template-columns:minmax(190px,.72fr) minmax(320px,1.28fr); align-items:start; gap:32px; margin-top:14px; }}
+      .connectivity-mini {{ min-width:0; padding-top:10px; border-top:1px solid rgba(17,17,17,.35); color:#111; }}
+      .connectivity-mini header {{ display:flex; justify-content:space-between; align-items:baseline; gap:10px; font-size:9px; letter-spacing:.1em; }}
+      .connectivity-mini header b {{ color:#ff4b1f; font-size:13px; }}
+      .connectivity-mini svg {{ display:block; width:100%; height:92px; overflow:visible; }}
+      .connectivity-mini line {{ stroke:rgba(17,17,17,.22); stroke-width:1; }}
+      .connectivity-mini polyline {{ fill:none; stroke:#111; stroke-width:1.7; vector-effect:non-scaling-stroke; }}
+      .connectivity-mini circle {{ fill:#ff4b1f; stroke:#f5f2ed; stroke-width:1; }}
+      .connectivity-mini small {{ display:block; color:#777168; font-size:7px; letter-spacing:.035em; line-height:1.35; }}
+      .stats {{ position:relative; z-index:5; display:block; width:100%; margin:0; padding:12px 0 4px; border-top:2px solid #111; color:#111; text-decoration:none; font-size:9px; letter-spacing:.09em; line-height:1.6; text-transform:uppercase; }}
       .stats h2 {{ margin:0 0 8px; font-size:13px; letter-spacing:.14em; }}
       .stats div {{ display:grid; grid-template-columns:1fr 1fr; gap:0 .7rem; }}
       .stats b {{ font-weight:500; }}
       .stats small {{ display:block; margin-top:8px; color:#777168; font-size:8px; letter-spacing:.05em; }}
       .stats:hover h2,.stats:focus h2 {{ color:#315f78; }}
+      @media (max-width:680px) {{ .graph-footer {{ grid-template-columns:1fr; gap:18px; }} .connectivity-mini {{ width:min(100%,310px); }} }}
       @keyframes wobble {{ from {{ transform:translate(calc(-50% + var(--field-x)),calc(-50% + var(--field-y))) rotate(-1.2deg) translateY(-3px); }} to {{ transform:translate(calc(-50% + var(--field-x)),calc(-50% + var(--field-y))) rotate(1.2deg) translateY(4px); }} }}
       @media (prefers-reduced-motion:reduce) {{ .node {{ animation:none; }} }}
     </style>
@@ -237,6 +290,8 @@ def build_graph_html(
         <a class="hub" href="?view=network&amp;door=access" target="_top" aria-label="{html.escape(start_label)}">+</a><div class="hub-label">{html.escape(start_label)}</div>
         {''.join(nodes)}
       </div>
+      <div class="graph-footer">
+      {connectivity_plot}
       <a class="stats" href="?view=network&amp;state=art" target="_top" aria-label="Inspect {html.escape(state_label)}">
         <h2>{html.escape(state_label)} ↗</h2><div>
           <span><b>{state_counts['active']}</b> {html.escape(active_label)}</span>
@@ -248,6 +303,7 @@ def build_graph_html(
           <span><b>{active_relation_count}</b> {html.escape(relations_label)}</span>
         </div><small>{html.escape(forthcoming_label)}</small>
       </a>
+      </div>
     </div>
     <script>
       (() => {{

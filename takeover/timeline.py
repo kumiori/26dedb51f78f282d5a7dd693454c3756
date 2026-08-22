@@ -31,7 +31,9 @@ def load_trajectory(path: str | Path) -> dict[str, Any]:
     return payload
 
 
-def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
+def build_timeline_figure(payload: dict[str, Any], *, focus: str = "to_do") -> go.Figure:
+    if focus not in {"done", "to_do"}:
+        raise ValueError("Timeline focus must be 'done' or 'to_do'.")
     plan = payload["plan"]
     events = sorted(payload["primitives"], key=lambda item: float(item.get("time_parameter", 0)))
     figure = go.Figure()
@@ -43,6 +45,13 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
     for index, event in enumerate(events):
         kind = str(event.get("type") or "event")
         glyph, color = EVENT_TYPES.get(kind, EVENT_TYPES["event"])
+        status = str(event.get("status") or "Planned")
+        done = status.casefold() == "done"
+        if done:
+            glyph, color = "✓", "#ff2d0a"
+        focused = done if focus == "done" else not done
+        marker_color = color if focused else "#dedad4"
+        text_color = "#111" if focused else "#aaa6a0"
         x = float(event.get("time_parameter") or event.get("temporal_position") or 0)
         # Keep the primitive alternation, but stagger neighbouring labels enough
         # to prevent the application-stage cluster from colliding.
@@ -51,14 +60,30 @@ def build_timeline_figure(payload: dict[str, Any]) -> go.Figure:
         title = str(event.get("title") or kind.replace("_", " ").title())
         figure.add_trace(go.Scatter(
             x=[x], y=[y], mode="markers+text",
-            marker={"size": 18, "color": color, "line": {"color": "#f5f2ed", "width": 3}},
+            marker={
+                "size": 21 if done else 18,
+                "color": marker_color,
+                "line": {"color": "#f5f2ed", "width": 3},
+            },
             text=[f"{glyph} {title}"], textposition="top center" if y > 0 else "bottom center",
-            textfont={"family": "Courier New, monospace", "size": 10, "color": "#111"},
-            customdata=[[kind, event.get("date", ""), event.get("visibility", "")]],
-            hovertemplate="<b>%{text}</b><br>%{customdata[0]}<br>%{customdata[1]}<extra></extra>",
+            textfont={"family": "Courier New, monospace", "size": 10, "color": text_color},
+            customdata=[[
+                kind, event.get("date", ""), status,
+                event.get("actual_timestamp", ""),
+            ]],
+            hovertemplate=(
+                "<b>%{text}</b><br>%{customdata[0]} · %{customdata[2]}"
+                "<br>planned %{customdata[1]}<br>actual %{customdata[3]}<extra></extra>"
+            ),
             showlegend=False,
         ))
-        figure.add_shape(type="line", x0=x, x1=x, y0=0, y1=y, line={"color": "rgba(16,16,16,.25)", "width": 1})
+        figure.add_shape(
+            type="line", x0=x, x1=x, y0=0, y1=y,
+            line={
+                "color": "rgba(16,16,16,.25)" if focused else "rgba(16,16,16,.08)",
+                "width": 1,
+            },
+        )
     anchors = plan.get("qualitative_anchors") or []
     figure.update_layout(
         height=520,
@@ -85,13 +110,17 @@ def histropedia_articles(payload: dict[str, Any]) -> list[dict[str, Any]]:
     for event in sorted(payload["primitives"], key=lambda item: str(item.get("date") or "")):
         if not event.get("date"):
             continue
-        event_date = _as_histropedia_date(event["date"])
+        status = str(event.get("status") or "Planned")
+        actual = event.get("actual_timestamp") if status.casefold() == "done" else None
+        event_date = _as_histropedia_date(actual or event["date"])
         kind = str(event.get("type") or "event").replace("_", " ").upper()
         visibility = str(event.get("visibility") or "").upper()
         articles.append({
             "id": str(event["id"]),
             "title": str(event.get("title") or kind.title()),
-            "subtitle": " · ".join(value for value in (kind, visibility) if value),
+            "subtitle": " · ".join(
+                value for value in (kind, status.upper(), visibility) if value
+            ),
             "from": event_date,
         })
     return articles

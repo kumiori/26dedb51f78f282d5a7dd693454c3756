@@ -7,7 +7,7 @@ import html
 import streamlit as st
 
 
-APPLICATION_FILE_URL = "https://console.filebase.com/object/takeover-fotografiska/APPLICATION-TAKEOVER%E2%80%A2kumiori-ALB.pdf"
+APPLICATION_FILE_URL = "https://console.filebase.com/object/takeover-fotografiska/APPLICATION-TAKEOVER%E2%80%A2HANDOUT.pdf"
 
 
 st.set_page_config(page_title="TAKE OVER · CTA turn test", page_icon="↗", layout="wide")

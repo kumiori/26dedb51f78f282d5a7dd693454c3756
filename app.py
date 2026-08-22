@@ -26,7 +26,7 @@ from takeover.identity import resolve_drop_token, resolve_identity
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
-from takeover.network_analysis import connectivity_figure, connectivity_history
+from takeover.network_analysis import connectivity_history
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
 from takeover.player_invitations import PlayerResolution, resolve_capability
@@ -50,7 +50,7 @@ ENCRYPTED_REGISTRY = Path(os.getenv("TAKEOVER_ENCRYPTED_REGISTRY", ROOT / "data"
 NODE_POPULATION = load_population_registry(ROOT / "config" / "takeover_node_population.yaml")
 NODE_REGISTRY = Path(os.getenv("TAKEOVER_NODE_REGISTRY", ROOT / "data" / "inhabited_nodes_v1.json"))
 NODE_MEDIA = Path(os.getenv("TAKEOVER_NODE_MEDIA", ROOT / "data" / "inhabited_node_media"))
-APPLICATION_FILE_URL = "https://useless-azure-newt.myfilebase.com/ipfs/QmPfo4qhhGcWqfUvj8gFc3fMHuCcVpT9S4NNGwF4snSvt6"
+APPLICATION_FILE_URL = "https://console.filebase.com/object/takeover-fotografiska/APPLICATION-TAKEOVER%E2%80%A2HANDOUT.pdf"
 PUBLIC_MEDIA_GATEWAY = "https://useless-azure-newt.myfilebase.com/ipfs"
 
 language = st.session_state.get("takeover_language", "en")
@@ -1056,18 +1056,6 @@ def render_network(
             '<b aria-hidden="true">↗</b></a></section>',
             unsafe_allow_html=True,
         )
-        connectivity_rows = connectivity_history(entities, relations)
-        st.markdown("### CONNECTIVITY / OBSERVED TIME")
-        st.plotly_chart(
-            connectivity_figure(connectivity_rows),
-            width="stretch",
-            theme=None,
-            config={"displayModeBar": False},
-        )
-        st.caption(
-            f'{connectivity_rows[-1]["basis"].upper()} · CONNECTIVITY = (1 + RELATIONS) / NODES · '
-            "DIRECTED DENSITY SHOWN ON HOVER"
-        )
         st.markdown("</div>", unsafe_allow_html=True)
     with right:
         st.caption(
@@ -1086,6 +1074,7 @@ def render_network(
                 t("active_people"), t("latent_known"), t("latent_private"), t("unknown"),
                 owner_id or None,
                 write_capability,
+                connectivity_history(entities, relations),
             )
         )
     render_activation_drop()
@@ -1184,8 +1173,17 @@ def render_timeline() -> None:
     st.markdown(f'<div class="timeline-phase">{t("phase")}: {t("application")}</div>', unsafe_allow_html=True)
     payload = load_trajectory(TRAJECTORY)
     st.caption(t("timeline_proposition"))
+    focus_label = st.segmented_control(
+        "FOCUS ON",
+        options=("DONE", "TO DO"),
+        default="TO DO",
+        key="timeline-focus",
+    )
     st.plotly_chart(
-        build_timeline_figure(payload),
+        build_timeline_figure(
+            payload,
+            focus="done" if focus_label == "DONE" else "to_do",
+        ),
         width="stretch",
         theme=None,
         config={"displayModeBar": False, "scrollZoom": False},
@@ -1296,7 +1294,7 @@ def footer_html() -> str:
     return (
         '<footer class="takeover-footer"><span>FOLLOW THE SIGNAL</span><nav>'
         f'<a href="https://t.me/takeover_process_bot" target="_blank" rel="noopener noreferrer" aria-label="Open TAKE OVER on Telegram">{telegram_icon}<strong>TELEGRAM</strong><small>CHANNEL / BOT ↗</small></a>'
-        f'<a href="https://console.filebase.com/buckets/takeover-fotografiska" target="_blank" rel="noopener noreferrer" aria-label="Open the TAKE OVER Filebase bucket">{filebase_icon}<strong>FILEBASE</strong><small>BUCKET ↗</small></a>'
+        f'<span class="takeover-footer-disabled" aria-disabled="true">{filebase_icon}<strong>FILEBASE</strong><small>BUCKET / DORMANT</small></span>'
         '</nav></footer>'
     )
 
