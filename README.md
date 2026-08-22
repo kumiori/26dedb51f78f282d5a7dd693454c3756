@@ -75,7 +75,28 @@ explicitly provisional in V0. Restarting the bot clears them. They do not write
 relations or invitations into Notion. Durable consent and proposal persistence
 requires a dedicated Notion adapter before production use.
 
-The public app reads Notion when `NOTION_TOKEN` is available, or when Streamlit secrets contain either `NOTION_TOKEN`, `[notion].token`, or `[notion].api_key`. Without one of these, the app uses a session-local registry so the UI remains testable without creating external records.
+The public app reads Notion when `NOTION_TOKEN` is available, or when Streamlit secrets contain either `NOTION_TOKEN`, `[notion].token`, or `[notion].api_key`. Without one of these, the app may render against a session-local registry for development, but that registry is never an identity authority. A `?c=` route then reports `PLAYER REGISTRY UNAVAILABLE`; it never attempts to resolve through a secret-table name.
+
+Capability ownership is authoritative only in `Takeover_Players`. The raw value
+is hashed with SHA-256 and matched against the structured
+`Metadata JSON.capability.verifier`; raw capabilities are never stored in
+Notion or projected into the public graph. Resolution distinguishes unavailable,
+degraded, malformed, unknown, revoked, resolved, and integrity-error states.
+
+Legacy values in `.streamlit/secrets.toml` are migration input only. After a
+Notion credential is configured, migrate them once with an explicit alias to
+canonical Person ID map where aliases and IDs differ:
+
+```bash
+python scripts/migrate_legacy_capabilities.py \
+  --mapping config/legacy_player_id_mapping.private.json \
+  --apply
+```
+
+The mapping file and secrets file remain uncommitted. The command preflights all
+rows before writing, refuses missing or duplicate players/verifiers and active
+verifier replacement, reads every write back, and prints aliases plus statuses
+only. Repeating the same migration reports `VERIFIED` without another write.
 
 The M2.0 Needs corpus is shared by the local fallback and the Notion sync. Apply it to the live registry after providing `NOTION_TOKEN`:
 
@@ -124,6 +145,7 @@ The same key may be placed in `.streamlit/secrets.toml`. When configured, the ap
 - `config/takeover_listening.yaml` — the open suggested-listening field and its reversible addendum presentation toggle.
 - `config/takeover_notion.json` — provisioned Notion database and data-source IDs.
 - Notion page **Takeover** — live entity, relation, necessity and interaction registry.
+- Notion **Takeover_Players / Metadata JSON.capability** — sole runtime authority for capability verifier ownership; raw capabilities remain client-held.
 - `takeover/i18n.py` — registered EN/ET/RU interface corpus, weights and translation status.
 
 The three visual entity classes are separate by design: Person, Photograph and Audio. Stage is explicit metadata and is never inferred from dates.

@@ -16,11 +16,11 @@ CODE_LENGTH = 5
 
 
 @dataclass(frozen=True)
-class CapabilityResolution:
+class PlayerResolution:
     status: str
+    person_id: str | None = None
     player: dict[str, Any] | None = None
     matches: int = 0
-
 
 @dataclass(frozen=True)
 class PlayerInvitationResult:
@@ -46,6 +46,43 @@ def create_invitation_credentials() -> tuple[str, str, str]:
 
 def capability_verifier(capability: str) -> str:
     return hashlib.sha256(capability.encode("utf-8")).hexdigest()
+
+
+def resolve_capability(
+    store: Any,
+    raw_capability: str,
+    *,
+    registry_status: str,
+) -> PlayerResolution:
+    """Resolve capability ownership through the authoritative player registry only."""
+    if registry_status == "unavailable":
+        return PlayerResolution("registry_unavailable")
+    if registry_status == "degraded":
+        return PlayerResolution("registry_degraded")
+    candidate = raw_capability.strip()
+    if not re.fullmatch(r"[A-Za-z0-9_-]{16,128}", candidate):
+        return PlayerResolution("malformed")
+    try:
+        matches = store.find_players_by_capability_verifier(
+            capability_verifier(candidate)
+        )
+    except Exception:
+        return PlayerResolution("registry_degraded")
+    if not matches:
+        return PlayerResolution("unknown")
+    if len(matches) != 1:
+        return PlayerResolution("integrity_error", matches=len(matches))
+    player = matches[0]
+    capability = (player.get("metadata") or {}).get("capability") or {}
+    if str(capability.get("status") or "") == "revoked":
+        return PlayerResolution(
+            "revoked", person_id=str(player["player_id"]), player=player, matches=1
+        )
+    if str(capability.get("status") or "") != "active":
+        return PlayerResolution("unknown")
+    return PlayerResolution(
+        "resolved", person_id=str(player["player_id"]), player=player, matches=1
+    )
 
 
 def invitation_url(base_url: str, *, capability: str) -> str:
@@ -110,7 +147,14 @@ def create_player_invitation(
     code, capability, verifier = credential_factory()
     metadata = {
         "invitation_code": code,
-        "invitation_capability_hash": verifier,
+        "capability": {
+            "version": 1,
+            "algorithm": "sha256",
+            "verifier": verifier,
+            "status": "active",
+            "issued_at": issued_at.isoformat(),
+            "revoked_at": None,
+        },
         "invitation_request_id": clean_request,
         "invited_by": inviter_id,
     }

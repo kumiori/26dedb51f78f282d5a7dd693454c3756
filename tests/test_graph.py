@@ -55,6 +55,29 @@ def test_typed_entity_and_relation_are_rendered() -> None:
     assert "1.00" in html
 
 
+def test_graph_pointer_motion_is_local_smooth_and_reduced_motion_safe() -> None:
+    entities = [Entity("ave", "person", "Ave"), Entity("image", "photograph", "Image")]
+    html = build_graph_html(entities, [Relation("r1", "ave", "image", "created")])
+
+    assert "field.addEventListener('pointermove'" in html
+    assert "requestAnimationFrame(animate)" in html
+    assert "prefers-reduced-motion: reduce" in html
+    assert '<base target="_top">' in html
+    assert 'data-source="n-0" data-target="n-1"' in html
+    assert "state.x += (state.tx - state.x) * .08" in html
+    assert "streamlit" not in html.lower()
+
+
+def test_graph_actions_navigate_the_parent_application_from_scripted_frame() -> None:
+    entities = [Entity("ave", "person", "Ave"), Entity("image", "photograph", "Image")]
+    html = build_graph_html(entities, [Relation("r1", "ave", "image", "created")])
+
+    assert '<base target="_top">' in html
+    assert 'href="?view=network&amp;node=ave"' in html
+    assert 'href="?view=network&amp;relation=r1"' in html
+    assert 'href="?view=network&amp;state=art"' in html
+
+
 def test_ready_node_avatar_is_a_renderer_level_circular_image() -> None:
     entity = Entity(
         "ave", "person", "Ave",

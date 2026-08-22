@@ -78,6 +78,15 @@ def test_canonical_invitation_factory_is_idempotent_and_writes_directed_provenan
 
     assert result.player["status"] == "draft"
     assert result.player["metadata"]["node_stage"] == "invited"
+    assert result.player["metadata"]["capability"] == {
+        "version": 1,
+        "algorithm": "sha256",
+        "verifier": capability_verifier("private-capability"),
+        "status": "active",
+        "issued_at": "2026-08-21T20:00:00+00:00",
+        "revoked_at": None,
+    }
+    assert "private-capability" not in str(result.player)
     assert result.relations[0].source == "ave"
     assert result.relations[0].target == result.player["player_id"]
     assert result.relations[0].type == "invited"

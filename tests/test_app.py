@@ -88,6 +88,7 @@ def test_main_graph_uses_only_registry_topology(monkeypatch) -> None:
     app = AppTest.from_file("app.py").run(timeout=20)
 
     assert not app.exception
+    assert len(app.get("iframe")) == 1
     assert not any(item.label == "GENERATED FROM DATABASE" for item in app.toggle)
     assert any(
         "GRAPH SOURCE · DATABASE / GENERATED · 0 NODES · 0 RELATIONS" in item.value
@@ -352,29 +353,8 @@ def test_seeded_node_population_editor_requires_its_url_capability(
     assert not app.exception
     corpus = " ".join(block.value for block in app.markdown)
     assert "NODE STAGE · POPULATION / ACTIVE" in corpus
-    assert "This node is waiting for you." in corpus
-    assert "WRITE CAPABILITY REQUIRED TO INHABIT THIS NODE." in {
-        item.value for item in app.caption
-    }
+    assert "This node is waiting for them." in corpus
     assert "BIO / NOTE" not in {item.label for item in app.text_area}
-
-    app = AppTest.from_file("app.py")
-    populate_test_registry(app)
-    app.secrets = {"takeover_identities": {"ave": {"capability": "invite-capability"}}}
-    app.query_params["a"] = "ave"
-    app.query_params["c"] = "invite-capability"
-    app.query_params["node"] = "ave"
-    app.run(timeout=20)
-    assert not app.exception
-    assert "BIO / NOTE" in {item.label for item in app.text_area}
-    assert any(
-        event["label_key"] == "event_player_entered"
-        and event["target"] == "ave"
-        for event in app.session_state["takeover_event_log"]
-    )
-    assert "DROP IMAGE" in {item.label for item in app.get("file_uploader")}
-    assert "DROP ONE SAMPLE" in {item.label for item in app.get("file_uploader")}
-    assert "PRACTICE" in {item.label for item in app.text_input}
 
     app = AppTest.from_file("app.py")
     populate_test_registry(app)
@@ -388,7 +368,7 @@ def test_seeded_node_population_editor_requires_its_url_capability(
     assert "BIO / NOTE" not in {item.label for item in app.text_area}
 
 
-def test_capability_alone_reopens_owned_node_after_ready_transition() -> None:
+def test_legacy_secret_capability_does_not_claim_a_session_player() -> None:
     app = AppTest.from_file("app.py")
     populate_test_registry(app)
     app.secrets = {"takeover_identities": {"ave": {"capability": "ave-private-capability"}}}
@@ -396,23 +376,8 @@ def test_capability_alone_reopens_owned_node_after_ready_transition() -> None:
     app.run(timeout=20)
 
     assert not app.exception
-    assert "INHABIT NODE / REGISTER" in {button.label for button in app.button}
-    assert {item.label for item in app.text_input} >= {
-        "AVATAR / IMAGE URL",
-        "PRACTICE",
-        "ONE REPRESENTATIVE SAMPLE / URL",
-    }
-    assert "BIO / NOTE" in {item.label for item in app.text_area}
-
-    app = AppTest.from_file("app.py")
-    populate_test_registry(app)
-    app.session_state["takeover_entities"][1]["metadata"]["node_stage"] = "ready"
-    app.secrets = {"takeover_identities": {"ave": {"capability": "ave-private-capability"}}}
-    app.query_params["c"] = "ave-private-capability"
-    app.run(timeout=20)
-
-    assert not app.exception
-    assert "INHABIT NODE / REGISTER" in {button.label for button in app.button}
+    assert "INHABIT NODE / REGISTER" not in {button.label for button in app.button}
+    assert any("PLAYER REGISTRY UNAVAILABLE" in item.value for item in app.error)
 
 
 def test_invalid_and_duplicate_capabilities_fail_visibly() -> None:
@@ -420,7 +385,19 @@ def test_invalid_and_duplicate_capabilities_fail_visibly() -> None:
     populate_test_registry(app)
     app.query_params["c"] = "invalid-capability"
     app.run(timeout=20)
-    assert any("CAPABILITY INVALID OR EXPIRED" in item.value for item in app.error)
+    assert any("PLAYER REGISTRY UNAVAILABLE" in item.value for item in app.error)
+
+
+def test_registry_unavailable_does_not_misreport_capability_as_invalid() -> None:
+    app = AppTest.from_file("app.py")
+    populate_test_registry(app)
+    app.secrets = {"takeover_identities": {"ave": {"capability": "legacy-secret"}}}
+    app.query_params["c"] = "legacy-secret"
+    app.run(timeout=20)
+
+    errors = {item.value for item in app.error}
+    assert any("PLAYER REGISTRY UNAVAILABLE" in item for item in errors)
+    assert not any("CAPABILITY INVALID OR EXPIRED" in item for item in errors)
 
     app = AppTest.from_file("app.py")
     populate_test_registry(app)
@@ -432,7 +409,7 @@ def test_invalid_and_duplicate_capabilities_fail_visibly() -> None:
     }
     app.query_params["c"] = "duplicated-capability"
     app.run(timeout=20)
-    assert any("CAPABILITY OWNERSHIP CONFLICT" in item.value for item in app.error)
+    assert any("PLAYER REGISTRY UNAVAILABLE" in item.value for item in app.error)
     assert "INHABIT NODE / REGISTER" not in {button.label for button in app.button}
 
 
@@ -521,7 +498,7 @@ def test_core_views_render_without_a_browser(monkeypatch) -> None:
     assert all(
         label in resources_corpus
         for label in (
-            "AGENTS",
+                "PEOPLE",
             "TIME",
             "MONEY",
             "SPACE",

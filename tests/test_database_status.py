@@ -42,8 +42,8 @@ def test_factory_health_reports_schema_storage_and_duplicate_counts_without_valu
     class FactoryRegistry(EmptyRegistry):
         def list_players(self):
             return [
-                {"player_id": "same", "metadata": {"invitation_capability_hash": "secret-a", "invitation_request_id": "request-a"}},
-                {"player_id": "same", "metadata": {"invitation_capability_hash": "secret-a", "invitation_request_id": "request-b"}},
+                {"player_id": "same", "metadata": {"capability": {"verifier": "secret-a"}, "invitation_request_id": "request-a"}},
+                {"player_id": "same", "metadata": {"capability": {"verifier": "secret-a"}, "invitation_request_id": "request-b"}},
             ]
 
         def factory_schema_diagnostics(self):

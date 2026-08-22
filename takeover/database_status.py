@@ -98,7 +98,8 @@ def inspect_factory_health(
             str(row.get("player_id") or "") for row in players
         ]),
         duplicate_capability_owners=_duplicate_value_count([
-            str(item.get("invitation_capability_hash") or "") for item in metadata
+            str((item.get("capability") or {}).get("verifier") or "")
+            for item in metadata
         ]),
         duplicate_invitation_requests=_duplicate_value_count([
             str(item.get("invitation_request_id") or "") for item in metadata

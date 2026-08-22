@@ -14,6 +14,7 @@ import secrets
 import uuid
 
 import streamlit as st
+from streamlit.components.v1 import html as render_component_html
 
 from takeover.analytics import emit_google_event, emit_invitation_events, normalise_activation
 from takeover.browser_encrypt import encrypted_drop
@@ -22,13 +23,13 @@ from takeover.database_status import RegistryDiagnostics, inspect_registry
 from takeover.graph import build_graph_html
 from takeover.events import list_events, record_event, record_event_once
 from takeover.encrypted_storage import EncryptedContribution, EncryptedRegistry
-from takeover.identity import node_write_identity, resolve_drop_token, resolve_identity
+from takeover.identity import resolve_drop_token, resolve_identity
 from takeover.i18n import LANGUAGES, REGISTRY, UTTERANCES, VOICE_LANGUAGES, language_status_metrics, language_term, record_translation_proposal, translate
 from takeover.listening import load_listening
 from takeover.models import ENTITY_TYPES, STAGES, Entity, entity_type_label
 from takeover.onboarding import ENTRY_MODES, persist_entry
 from takeover.persona_auth import ProvisionalPersonaStore, authenticate_persona, mint_persona
-from takeover.player_invitations import CapabilityResolution
+from takeover.player_invitations import PlayerResolution, resolve_capability
 from takeover.inhabited_nodes import FileNodeStore, PublicNodeMediaStore, node_stage
 from takeover.node_population import PlayerPopulation, load_population_registry, resolve_population_participant, upsert_inhabited_node, upsert_player_verified
 from takeover.registry import SessionRegistry, with_rc0_seeds
@@ -87,18 +88,6 @@ def _secret(name: str) -> str:
         return str(st.secrets.get(name, "") or "").strip()
     except Exception:
         return ""
-
-
-def _node_write_participant(participant_id: str | None) -> str | None:
-    """Resolve the narrow node-population capability carried by ``?c=``."""
-    if not participant_id:
-        return None
-    try:
-        identities = {name: dict(value) for name, value in st.secrets["takeover_identities"].items()}
-    except (KeyError, TypeError):
-        return None
-    capability = str(st.query_params.get("c", "") or "")
-    return node_write_identity(participant_id, capability, identities)
 
 
 def _notion_token_value() -> str:
@@ -173,7 +162,7 @@ def resource_drop_dialog(participant: str, identities: dict, s3, bucket: str) ->
     st.caption(f"FOR · {participant}")
     st.write("SELECT A FILE. PLAINTEXT STAYS IN THIS BROWSER; ONLY CIPHERTEXT ENTERS THE BUCKET OF GOLD.")
     contribution_id = str(uuid.uuid4())
-    namespace = hashlib.sha256(identities[participant]["capability"].encode()).hexdigest()[:16]
+    namespace = hashlib.sha256(f"takeover-drop:{participant}".encode()).hexdigest()[:16]
     object_key = f"private/{participant}/{namespace}/{contribution_id}.enc"
     try:
         upload_url = s3.generate_presigned_url(
@@ -444,10 +433,6 @@ def render_activation_drop() -> None:
         if error:
             st.warning(error)
             return
-        config = storage_identities.get(activation) or {}
-        if not str(config.get("capability") or "").strip():
-            st.warning("DROP CAPABILITY IS NOT CONFIGURED")
-            return
         if st.button("OPEN PRIVATE DROP", key=f"drop-open-{activation}", type="primary", width="stretch"):
             resource_drop_dialog(activation, storage_identities, s3, bucket)
 
@@ -600,10 +585,7 @@ def node_dialog(entity: Entity, participant_id: str | None, repo) -> None:
         unsafe_allow_html=True,
     )
     if stage == "node_population":
-        if participant_id == entity.id and _node_write_participant(participant_id) == entity.id:
-            st.write("This node is waiting for you.")
-            render_node_editor(entity, store, repo)
-        elif participant_id == entity.id:
+        if participant_id == entity.id:
             st.write("This node is waiting for you.")
             st.caption("WRITE CAPABILITY REQUIRED TO INHABIT THIS NODE.")
         else:
@@ -688,55 +670,13 @@ def owned_node_dialog(repo, player: dict) -> None:
             st.error(f"REGISTRATION FAILED · {type(exc).__name__}: {exc}")
 
 
-def resolve_capability_player(repo) -> CapabilityResolution:
-    capability = str(st.query_params.get("c", "") or "").strip()
+def resolve_capability_player(repo, player_registry_status: str) -> PlayerResolution:
+    capability = str(st.query_params.get("c", "") or "")
     if not capability:
-        return CapabilityResolution("missing")
-    resolver = getattr(repo, "resolve_player_capability", None)
-    if callable(resolver):
-        resolution = resolver(capability)
-        if resolution.status != "invalid":
-            return resolution
-    try:
-        identities = {
-            str(node_id): dict(config)
-            for node_id, config in st.secrets["takeover_identities"].items()
-        }
-    except (KeyError, TypeError, AttributeError):
-        return CapabilityResolution("invalid")
-    matches = [
-        node_id
-        for node_id, config in identities.items()
-        if str(config.get("capability") or "")
-        and secrets.compare_digest(str(config["capability"]), capability)
-    ]
-    if len(matches) != 1:
-        return CapabilityResolution(
-            "duplicate" if matches else "invalid", matches=len(matches)
-        )
-    reader = getattr(repo, "read_player", None)
-    if callable(reader):
-        player = reader(matches[0])
-        return (
-            CapabilityResolution("resolved", player=player, matches=1)
-            if player
-            else CapabilityResolution("invalid")
-        )
-    entity = next((item for item in repo.list_entities() if item.id == matches[0]), None)
-    if entity is None:
-        return CapabilityResolution("invalid")
-    player = {
-        "player_id": entity.id,
-        "name": entity.title,
-        "label": entity.label,
-        "image_url": entity.source,
-        "bio": str(entity.metadata.get("bio") or ""),
-        "practice": str(entity.metadata.get("practice") or ""),
-        "sample_url": str(entity.metadata.get("sample_url") or ""),
-        "metadata": dict(entity.metadata),
-        "initial_condition": dict(entity.metadata.get("initial_condition") or {}),
-    }
-    return CapabilityResolution("resolved", player=player, matches=1)
+        return PlayerResolution("missing")
+    return resolve_capability(
+        repo, capability, registry_status=player_registry_status
+    )
 
 
 @st.dialog(t("connection"), width="large")
@@ -965,7 +905,12 @@ def render_sidebar(current: str, mode: str, database: RegistryDiagnostics) -> No
             st.markdown(f'<div class="event-log-row"><time>{occurred} UTC</time><strong>{html.escape(label)}</strong>{f"<span>{suffix}</span>" if suffix else ""}</div>', unsafe_allow_html=True)
 
 
-def render_network(repo, mode: str, database: RegistryDiagnostics) -> None:
+def render_network(
+    repo,
+    mode: str,
+    database: RegistryDiagnostics,
+    capability_player: dict | None = None,
+) -> None:
     entities, relations = list(database.entities), list(database.relations)
     process = "".join(
         f'<p>{html.escape(t(key))}</p>'
@@ -1017,18 +962,21 @@ def render_network(repo, mode: str, database: RegistryDiagnostics) -> None:
             "GRAPH SOURCE · DATABASE / GENERATED · "
             f"{len(entities)} NODES · {len(relations)} RELATIONS"
         )
-        write_capability = ""
-        if _node_write_participant(current_participant_id) == current_participant_id:
-            write_capability = str(st.query_params.get("c", "") or "")
-        st.html(
+        owner_id = str((capability_player or {}).get("player_id") or "")
+        write_capability = (
+            str(st.query_params.get("c", "") or "") if owner_id else ""
+        )
+        render_component_html(
             build_graph_html(
                 entities, relations, t("start_here"), t("state_of_art"),
                 t("nodes"), t("connections"), t("connectivity"),
                 t("active_relations"), t("additions_opening_next"),
                 t("active_people"), t("latent_known"), t("latent_private"), t("unknown"),
-                current_participant_id,
+                owner_id or None,
                 write_capability,
-            )
+            ),
+            height=620,
+            scrolling=False,
         )
     render_activation_drop()
     st.markdown(
@@ -1075,7 +1023,10 @@ def render_network(repo, mode: str, database: RegistryDiagnostics) -> None:
     selected = next((item for item in entities if item.id == requested), None)
     if selected:
         record_event_once(st.session_state, f"node-open-{selected.id}", "event_node_opened", selected.id)
-        node_dialog(selected, current_participant_id, repo)
+        if str((capability_player or {}).get("player_id") or "") == selected.id:
+            owned_node_dialog(repo, capability_player)
+        else:
+            node_dialog(selected, None, repo)
     requested_relation = str(st.query_params.get("relation", "") or "")
     selected_relation = next((item for item in relations if item.id == requested_relation), None)
     if selected_relation:
@@ -1332,7 +1283,12 @@ def render_voices() -> None:
 
 repo, registry_mode = registry()
 database_status = inspect_registry(repo, registry_mode)
-capability_resolution = resolve_capability_player(repo)
+player_registry_status = (
+    "unavailable"
+    if registry_mode != "notion"
+    else ("degraded" if database_status.status == "error" else "available")
+)
+capability_resolution = resolve_capability_player(repo, player_registry_status)
 capability_player = capability_resolution.player
 if capability_player is not None:
     record_event_once(
@@ -1342,9 +1298,17 @@ if capability_player is not None:
         str(capability_player["player_id"]),
         str((capability_player.get("metadata") or {}).get("node_stage") or ""),
     )
-if capability_resolution.status == "invalid":
+if capability_resolution.status == "registry_unavailable":
+    st.error("PLAYER REGISTRY UNAVAILABLE · CAPABILITY NOT CHECKED")
+elif capability_resolution.status == "registry_degraded":
+    st.error("PLAYER REGISTRY DEGRADED · CAPABILITY NOT CHECKED")
+elif capability_resolution.status == "malformed":
+    st.error("CAPABILITY MALFORMED · NO PLAYER RESOLVED")
+elif capability_resolution.status == "unknown":
     st.error("CAPABILITY INVALID OR EXPIRED · NO PLAYER RESOLVED")
-elif capability_resolution.status == "duplicate":
+elif capability_resolution.status == "revoked":
+    st.error("CAPABILITY REVOKED · EDITING DISABLED")
+elif capability_resolution.status == "integrity_error":
     st.error(
         "CAPABILITY OWNERSHIP CONFLICT · "
         f"{capability_resolution.matches} PLAYERS RESOLVED · EDITING DISABLED"
@@ -1368,7 +1332,7 @@ if current_view not in {"network", "timeline", "necessities", "resources", "orde
 render_nav(current_view)
 render_sidebar(current_view, registry_mode, database_status)
 if current_view == "network":
-    render_network(repo, registry_mode, database_status)
+    render_network(repo, registry_mode, database_status, capability_player)
 elif current_view == "timeline":
     render_timeline()
 elif current_view == "necessities":

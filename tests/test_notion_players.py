@@ -4,7 +4,7 @@ from pathlib import Path
 
 from takeover.node_population import PlayerPopulation, make_person_id
 from takeover.notion import NotionRegistry
-from takeover.player_invitations import create_player_invitation
+from takeover.player_invitations import create_player_invitation, resolve_capability
 
 
 ROOT = Path(__file__).resolve().parents[1]
@@ -185,41 +185,28 @@ def test_generated_player_initial_condition_survives_mutable_updates() -> None:
     assert updated["metadata"]["initial_condition"] == initial
 
 
-def test_invitation_resolves_only_with_code_and_matching_private_capability() -> None:
+def test_invitation_capability_is_structured_and_never_projected_publicly() -> None:
     client = FakeNotionClient()
     registry = NotionRegistry("test-token", ROOT / "config" / "takeover_notion.json", client=client)
     capability = "a-long-private-capability"
     registry.upsert_player(PlayerPopulation(
         player_id="invited-player",
         name="Invited Player",
-        metadata={
-            "invitation_code": "AB23C",
-            "invitation_capability_hash": hashlib.sha256(capability.encode()).hexdigest(),
-        },
+        metadata={"invitation_code": "AB23C", "capability": {
+            "version": 1, "algorithm": "sha256",
+            "verifier": hashlib.sha256(capability.encode()).hexdigest(),
+            "status": "active", "issued_at": "2026-08-21T20:00:00+00:00",
+            "revoked_at": None,
+        }},
         node_stage="invited",
         network_state="latent_private",
     ))
 
-    resolved = registry.resolve_player_invitation("ab23c", capability)
+    resolved = registry.resolve_player_capability(capability)
     entity = registry._entities("players", "person", "Person ID")[0]
 
-    assert resolved and resolved["player_id"] == "invited-player"
-    assert "invitation_capability_hash" not in entity.metadata
-    assert registry.resolve_unfinished_player_capability(capability)["player_id"] == "invited-player"
-    assert registry.resolve_player_invitation("AB23C", "wrong") is None
-    assert registry.resolve_player_invitation("WRONG", capability) is None
-
-    registry.upsert_player(PlayerPopulation(
-        player_id="invited-player",
-        name="Invited Player",
-        metadata={
-            "invitation_code": "AB23C",
-            "invitation_capability_hash": hashlib.sha256(capability.encode()).hexdigest(),
-        },
-        node_stage="ready",
-        network_state="active",
-    ))
-    assert registry.resolve_unfinished_player_capability(capability) is None
+    assert resolved.player and resolved.player["player_id"] == "invited-player"
+    assert "capability" not in entity.metadata
 
 
 def test_capability_resolution_is_unique_visible_and_survives_ready_transition() -> None:
@@ -230,7 +217,8 @@ def test_capability_resolution_is_unique_visible_and_survives_ready_transition()
     registry.upsert_player(PlayerPopulation(
         player_id="owner",
         name="Owner",
-        metadata={"invitation_capability_hash": verifier},
+        metadata={"capability": {"version": 1, "algorithm": "sha256", "verifier": verifier,
+                                 "status": "active", "issued_at": "now", "revoked_at": None}},
         node_stage="node_population",
     ))
 
@@ -242,7 +230,8 @@ def test_capability_resolution_is_unique_visible_and_survives_ready_transition()
     registry.upsert_player(PlayerPopulation(
         player_id="owner",
         name="Owner",
-        metadata={"invitation_capability_hash": verifier},
+        metadata={"capability": {"version": 1, "algorithm": "sha256", "verifier": verifier,
+                                 "status": "active", "issued_at": "now", "revoked_at": None}},
         node_stage="ready",
     ))
     reopened = registry.resolve_player_capability(capability)
@@ -252,11 +241,91 @@ def test_capability_resolution_is_unique_visible_and_survives_ready_transition()
     registry.upsert_player(PlayerPopulation(
         player_id="duplicate-owner",
         name="Duplicate",
-        metadata={"invitation_capability_hash": verifier},
+        metadata={"capability": {"version": 1, "algorithm": "sha256", "verifier": verifier,
+                                 "status": "active", "issued_at": "now", "revoked_at": None}},
         node_stage="node_population",
     ))
-    assert registry.resolve_player_capability(capability).status == "duplicate"
-    assert registry.resolve_player_capability("invalid").status == "invalid"
+    assert registry.resolve_player_capability(capability).status == "integrity_error"
+    assert registry.resolve_player_capability("invalid").status == "malformed"
+
+
+def test_authoritative_capability_resolution_distinguishes_all_factory_states() -> None:
+    client = FakeNotionClient()
+    registry = NotionRegistry("test-token", ROOT / "config" / "takeover_notion.json", client=client)
+    active = "active-private-capability"
+    revoked = "revoked-private-capability"
+    registry.upsert_player(PlayerPopulation(
+        player_id="active-owner",
+        name="Active Owner",
+        metadata={"capability": {
+            "version": 1,
+            "algorithm": "sha256",
+            "verifier": hashlib.sha256(active.encode()).hexdigest(),
+            "status": "active",
+            "issued_at": "2026-08-21T20:00:00+00:00",
+            "revoked_at": None,
+        }},
+    ))
+    registry.upsert_player(PlayerPopulation(
+        player_id="revoked-owner",
+        name="Revoked Owner",
+        metadata={"capability": {
+            "version": 1,
+            "algorithm": "sha256",
+            "verifier": hashlib.sha256(revoked.encode()).hexdigest(),
+            "status": "revoked",
+            "issued_at": "2026-08-21T20:00:00+00:00",
+            "revoked_at": "2026-08-21T21:00:00+00:00",
+        }},
+    ))
+
+    resolved = resolve_capability(registry, active, registry_status="available")
+    assert resolved.status == "resolved"
+    assert resolved.person_id == "active-owner"
+    assert resolve_capability(registry, revoked, registry_status="available").status == "revoked"
+    assert resolve_capability(registry, "random-capability", registry_status="available").status == "unknown"
+    assert resolve_capability(registry, "", registry_status="available").status == "malformed"
+    assert resolve_capability(registry, active, registry_status="unavailable").status == "registry_unavailable"
+    assert resolve_capability(registry, active, registry_status="degraded").status == "registry_degraded"
+
+    registry.upsert_player(PlayerPopulation(
+        player_id="duplicate-owner",
+        name="Duplicate Owner",
+        metadata={"capability": {
+            "version": 1,
+            "algorithm": "sha256",
+            "verifier": hashlib.sha256(active.encode()).hexdigest(),
+            "status": "active",
+            "issued_at": "2026-08-21T20:00:00+00:00",
+            "revoked_at": None,
+        }},
+    ))
+    duplicate = resolve_capability(registry, active, registry_status="available")
+    assert duplicate.status == "integrity_error"
+    assert duplicate.matches == 2
+
+
+def test_ordinary_player_update_cannot_erase_capability_ownership() -> None:
+    client = FakeNotionClient()
+    registry = NotionRegistry("test-token", ROOT / "config" / "takeover_notion.json", client=client)
+    raw = "ownership-must-survive"
+    capability = {
+        "version": 1, "algorithm": "sha256",
+        "verifier": hashlib.sha256(raw.encode()).hexdigest(),
+        "status": "active", "issued_at": "2026-08-21T20:00:00+00:00",
+        "revoked_at": None,
+    }
+    registry.upsert_player(PlayerPopulation(
+        player_id="owner", name="Owner", metadata={"capability": capability},
+    ))
+
+    registry.upsert_player(PlayerPopulation(
+        player_id="owner", name="Owner", bio="A later ordinary edit", metadata={},
+        node_stage="ready",
+    ))
+
+    assert registry.read_player("owner")["metadata"]["capability"] == capability
+    assert registry.resolve_player_capability(raw).person_id == "owner"
 
 
 def test_fresh_adapter_recovers_same_ready_player_and_saved_human_state() -> None:

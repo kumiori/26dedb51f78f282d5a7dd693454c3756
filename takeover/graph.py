@@ -72,6 +72,7 @@ def build_graph_html(
         entity_id: (px * width, py * height)
         for entity_id, (px, py) in generated_positions(entities).items()
     }
+    motion_ids = {entity.id: f"n-{index}" for index, entity in enumerate(entities)}
 
     entity_status = {entity.id: entity.status for entity in entities}
     lines: list[str] = []
@@ -93,6 +94,8 @@ def build_graph_html(
         relation_label = html.escape(relation.type)
         lines.append(
             f'<a href="?view=network&amp;relation={query}" class="relation-link" '
+            f'data-source="{motion_ids[relation.source]}" data-target="{motion_ids[relation.target]}" '
+            f'data-x1="{x1:.4f}" data-y1="{y1:.4f}" data-x2="{x2:.4f}" data-y2="{y2:.4f}" '
             f'style="left:{100 * x1 / width:.4f}%;top:{100 * y1 / height:.4f}%;'
             f'width:{100 * length / width:.4f}%;--angle:{angle:.4f}deg" '
             f'aria-label="Inspect {relation_label} relation"><span class="relation-stroke"></span>'
@@ -103,6 +106,7 @@ def build_graph_html(
     kind_class = {"person": "person", "photograph": "photograph", "audio": "audio"}
     for index, entity in enumerate(entities):
         x, y = positions[entity.id]
+        motion_id = motion_ids[entity.id]
         label = html.escape(entity.title)
         kind = kind_class[entity.type]
         depth = int(entity.metadata.get("depth", 0))
@@ -143,7 +147,7 @@ def build_graph_html(
             if entity.id == editable_node_id and write_capability:
                 context_query += f"&amp;c={quote(write_capability, safe='')}"
             nodes.append(
-                f'<a href="?view=network&amp;node={query}{context_query}" class="node active {"context-node " if entity.id == editable_node_id else ""}{kind}" '
+                f'<a href="?view=network&amp;node={query}{context_query}" data-node-id="{motion_id}" class="node active {"context-node " if entity.id == editable_node_id else ""}{kind}" '
                 f'style="{style}" aria-label="Inspect {label}">'
                 f'<span class="{orb_class}"{orb_style}></span><strong>{label}<i> ↗</i></strong><small>{html.escape(context)}</small></a>'
             )
@@ -151,7 +155,7 @@ def build_graph_html(
             visible_label = label if entity.status == "latent_known" else ""
             aria = f' aria-label="{label}, {html.escape(entity.status)}"' if visible_label else ' aria-hidden="true"'
             nodes.append(
-                f'<div class="node depth-node {state_class} {kind}" style="{style}"{aria}>'
+                f'<div data-node-id="{motion_id}" class="node depth-node {state_class} {kind}" style="{style}"{aria}>'
                 f'<span class="orb"></span>{f"<strong>{visible_label}</strong>" if visible_label else ""}</div>'
             )
 
@@ -171,6 +175,7 @@ def build_graph_html(
     payload = json.dumps({"nodes": count, "connections": connection_count, "states": state_counts})
 
     return f"""
+    <base target="_top">
     <style>
       * {{ box-sizing:border-box; }}
       body {{ margin:0; background:transparent; color:#111; font-family:'Courier New',monospace; }}
@@ -185,7 +190,7 @@ def build_graph_html(
         width:8.91%; aspect-ratio:1; border-radius:50%; background:#111; color:#fff; font-size:clamp(22px,2.5vw,34px); text-decoration:none; }}
       .hub:hover,.hub:focus {{ background:#777168; outline:0; }}
       .hub-label {{ position:absolute; z-index:4; left:45%; top:59%; transform:translateX(-50%); font-size:10px; letter-spacing:.11em; white-space:nowrap; }}
-      .node {{ position:absolute; z-index:3; transform:translate(-50%,-50%); width:15%; color:#111; text-decoration:none; text-align:center;
+      .node {{ position:absolute; z-index:3; --field-x:0px; --field-y:0px; transform:translate(calc(-50% + var(--field-x)),calc(-50% + var(--field-y))); width:15%; color:#111; text-decoration:none; text-align:center;
         animation:wobble 6s ease-in-out infinite alternate; animation-delay:var(--delay); }}
       .orb {{ display:block; width:63.77%; aspect-ratio:1; margin:0 auto 9px; border-radius:50%; border:1px solid #45413d; background:#151515; box-shadow:inset 0 0 0 1px rgba(255,255,255,.16); transition:transform .16s ease,box-shadow .16s ease; }}
       .inhabited-node-avatar {{ background-repeat:no-repeat; background-color:#151515; }}
@@ -213,7 +218,7 @@ def build_graph_html(
       .stats b {{ font-weight:500; }}
       .stats small {{ display:block; margin-top:8px; color:#777168; font-size:8px; letter-spacing:.05em; }}
       .stats:hover h2,.stats:focus h2 {{ color:#315f78; }}
-      @keyframes wobble {{ from {{ transform:translate(-50%,-50%) rotate(-1.2deg) translateY(-3px); }} to {{ transform:translate(-50%,-50%) rotate(1.2deg) translateY(4px); }} }}
+      @keyframes wobble {{ from {{ transform:translate(calc(-50% + var(--field-x)),calc(-50% + var(--field-y))) rotate(-1.2deg) translateY(-3px); }} to {{ transform:translate(calc(-50% + var(--field-x)),calc(-50% + var(--field-y))) rotate(1.2deg) translateY(4px); }} }}
       @media (prefers-reduced-motion:reduce) {{ .node {{ animation:none; }} }}
     </style>
     <div class="graph-shell">
@@ -234,4 +239,59 @@ def build_graph_html(
         </div><small>{html.escape(forthcoming_label)}</small>
       </a>
     </div>
+    <script>
+      (() => {{
+        if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) return;
+        const field = document.querySelector('.field');
+        const nodes = [...field.querySelectorAll('[data-node-id]')];
+        const edges = [...field.querySelectorAll('.relation-link')];
+        const motion = new Map(nodes.map(node => [node.dataset.nodeId, {{x:0,y:0,tx:0,ty:0}}]));
+        let pointer = null;
+
+        field.addEventListener('pointermove', event => {{
+          const rect = field.getBoundingClientRect();
+          pointer = {{x:event.clientX - rect.left, y:event.clientY - rect.top}};
+        }}, {{passive:true}});
+        field.addEventListener('pointerleave', () => {{ pointer = null; }});
+
+        function animate() {{
+          const rect = field.getBoundingClientRect();
+          nodes.forEach(node => {{
+            const state = motion.get(node.dataset.nodeId);
+            const cx = parseFloat(node.style.left) * rect.width / 100;
+            const cy = parseFloat(node.style.top) * rect.height / 100;
+            if (pointer) {{
+              const dx = cx - pointer.x;
+              const dy = cy - pointer.y;
+              const distance = Math.max(Math.hypot(dx, dy), 1);
+              const reach = Math.min(rect.width, rect.height) * .24;
+              const strength = 15 * Math.exp(-(distance * distance) / (reach * reach));
+              state.tx = dx / distance * strength;
+              state.ty = dy / distance * strength;
+            }} else {{
+              state.tx = 0;
+              state.ty = 0;
+            }}
+            state.x += (state.tx - state.x) * .08;
+            state.y += (state.ty - state.y) * .08;
+            node.style.setProperty('--field-x', `${{state.x.toFixed(2)}}px`);
+            node.style.setProperty('--field-y', `${{state.y.toFixed(2)}}px`);
+          }});
+          edges.forEach(edge => {{
+            const source = motion.get(edge.dataset.source) || {{x:0,y:0}};
+            const target = motion.get(edge.dataset.target) || {{x:0,y:0}};
+            const x1 = parseFloat(edge.dataset.x1) * rect.width / {width} + source.x;
+            const y1 = parseFloat(edge.dataset.y1) * rect.height / {height} + source.y;
+            const x2 = parseFloat(edge.dataset.x2) * rect.width / {width} + target.x;
+            const y2 = parseFloat(edge.dataset.y2) * rect.height / {height} + target.y;
+            edge.style.left = `${{100 * x1 / rect.width}}%`;
+            edge.style.top = `${{100 * y1 / rect.height}}%`;
+            edge.style.width = `${{100 * Math.hypot(x2 - x1, y2 - y1) / rect.width}}%`;
+            edge.style.setProperty('--angle', `${{Math.atan2(y2 - y1, x2 - x1) * 180 / Math.PI}}deg`);
+          }});
+          requestAnimationFrame(animate);
+        }}
+        requestAnimationFrame(animate);
+      }})();
+    </script>
     """

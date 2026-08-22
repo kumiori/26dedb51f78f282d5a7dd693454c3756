@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
-import hashlib
 import json
 from pathlib import Path
 import secrets
@@ -13,7 +12,7 @@ from notion_client import Client
 
 from .models import Entity, Necessity, Relation
 from .node_population import PlayerPopulation
-from .player_invitations import CapabilityResolution
+from .player_invitations import PlayerResolution
 
 
 def _plain(prop: dict[str, Any]) -> str:
@@ -130,6 +129,7 @@ class NotionRegistry:
                 metadata = {}
             # Authentication verifiers are adapter-private and never enter graph projections.
             metadata.pop("invitation_capability_hash", None)
+            metadata.pop("capability", None)
             source_prop = "Image URL" if entity_type in {"person", "photograph"} else "Source URL"
             source = str((props.get(source_prop) or {}).get("url") or "")
             if entity_type == "person":
@@ -286,55 +286,27 @@ class NotionRegistry:
         row["duplicates"] = max(0, len(matches) - 1)
         return row
 
-    def resolve_player_invitation(self, code: str, capability: str) -> dict[str, Any] | None:
-        """Resolve one invitation without exposing its verifier through graph entities."""
-        candidate_code = code.strip().upper()
-        candidate_hash = hashlib.sha256(capability.strip().encode("utf-8")).hexdigest()
-        matches = []
-        for page in self._query_all("players"):
-            row = self._player_from_page(page)
-            metadata = row.get("metadata") or {}
-            expected_code = str(metadata.get("invitation_code") or "").upper()
-            expected_hash = str(metadata.get("invitation_capability_hash") or "")
-            if expected_code == candidate_code and expected_hash and secrets.compare_digest(expected_hash, candidate_hash):
-                matches.append(row)
-        return matches[0] if len(matches) == 1 else None
+    def resolve_player_capability(self, capability: str) -> PlayerResolution:
+        """Resolve one player-scoped capability with an explicit ownership outcome."""
+        from .player_invitations import resolve_capability
 
-    def resolve_unfinished_player_capability(self, capability: str) -> dict[str, Any] | None:
-        """Resolve one capability only while its player node remains unfinished."""
-        candidate_hash = hashlib.sha256(capability.strip().encode("utf-8")).hexdigest()
-        matches = []
+        return resolve_capability(self, capability, registry_status="available")
+
+    def find_players_by_capability_verifier(self, verifier: str) -> list[dict[str, Any]]:
+        """Return players owning a structured verifier without exposing raw credentials."""
+        matches: list[dict[str, Any]] = []
         for page in self._query_all("players"):
             row = self._player_from_page(page)
-            metadata = row.get("metadata") or {}
-            expected_hash = str(metadata.get("invitation_capability_hash") or "")
-            node_stage = str(metadata.get("node_stage") or "")
+            capability = (row.get("metadata") or {}).get("capability") or {}
+            expected = str(capability.get("verifier") or "")
             if (
-                row.get("status") == "active"
-                and node_stage in {"invited", "node_population"}
-                and expected_hash
-                and secrets.compare_digest(expected_hash, candidate_hash)
+                capability.get("version") == 1
+                and capability.get("algorithm") == "sha256"
+                and expected
+                and secrets.compare_digest(expected, verifier)
             ):
                 matches.append(row)
-        return matches[0] if len(matches) == 1 else None
-
-    def resolve_player_capability(self, capability: str) -> CapabilityResolution:
-        """Resolve one player-scoped capability with an explicit ownership outcome."""
-        candidate = capability.strip()
-        if not candidate:
-            return CapabilityResolution("invalid")
-        candidate_hash = hashlib.sha256(candidate.encode("utf-8")).hexdigest()
-        matches = []
-        for page in self._query_all("players"):
-            row = self._player_from_page(page)
-            expected_hash = str((row.get("metadata") or {}).get("invitation_capability_hash") or "")
-            if expected_hash and secrets.compare_digest(expected_hash, candidate_hash):
-                matches.append(row)
-        if not matches:
-            return CapabilityResolution("invalid")
-        if len(matches) != 1:
-            return CapabilityResolution("duplicate", matches=len(matches))
-        return CapabilityResolution("resolved", player=matches[0], matches=1)
+        return matches
 
     def upsert_player(self, payload: PlayerPopulation) -> dict[str, Any]:
         """Create or update one player by stable Person ID, then read it back."""
@@ -351,10 +323,21 @@ class NotionRegistry:
         existing_initial = existing_metadata.get("initial_condition") or {}
         if existing_initial and payload.initial_condition and existing_initial != payload.initial_condition:
             raise ValueError("Initial condition is immutable for an existing player.")
+        existing_capability = existing_metadata.get("capability") or {}
+        submitted_capability = payload.metadata.get("capability") or {}
+        if (
+            existing_capability.get("status") == "active"
+            and submitted_capability
+            and submitted_capability != existing_capability
+        ):
+            raise ValueError("Active capability requires an explicit rotation operation.")
         metadata = {
+            **existing_metadata,
             **{key: value for key, value in payload.metadata.items() if key != "initial_condition"},
             "node_stage": payload.node_stage,
         }
+        if metadata.get("capability"):
+            metadata.pop("invitation_capability_hash", None)
         initial_condition = existing_initial or payload.initial_condition
         if initial_condition:
             metadata["initial_condition"] = initial_condition
